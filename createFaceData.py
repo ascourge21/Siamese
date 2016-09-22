@@ -26,6 +26,7 @@ def read_pgm(filename, byteorder='>'):
                             offset=len(header)
                             ).reshape((int(height), int(width)))
 
+
 def gen_train_data(samp_f, total_to_samp):
 
     # first run on 1 data to find array shape
@@ -170,3 +171,34 @@ def gen_train_data_for_conv(samp_f, total_to_samp):
     x_train = x_train.reshape([x_train.shape[0], 1,x_train.shape[1], x_train.shape[2]])/255
 
     return x_train, y_train
+
+
+# this returns x_train and y_train for classification - y is a factor variable
+def gen_data_for_classification(samp_f):
+    # first run on 1 data to find array shape
+    im1 = read_pgm(os.getcwd() + '/orl_faces/s' + str(1) + '/' + str(1) + '.pgm', 'rw+')
+    im1 = im1[::samp_f, ::samp_f]
+    sz_1 = im1.shape[0]
+    sz_2 = im1.shape[1]
+
+    count = 0
+    x = np.zeros([400, sz_1, sz_2])
+    y = np.zeros([400, 10])
+    for i in range(40):
+        for j in range(10):
+            im1 = read_pgm(os.getcwd() + '/orl_faces/s' + str(i+1) + '/' + str(j+1) + '.pgm', 'rw+')
+            im1 = im1[::samp_f, ::samp_f]
+
+            x[count, :, :] = im1/255
+            y[count, j] = 1
+            count += 1
+
+
+            # plt.figure(1)
+            # plt.imshow(im1, cmap='Greys_r')
+            # plt.figure(2)
+            # plt.imshow(im2, cmap='Greys_r')
+            # plt.show()
+
+    x = x.reshape([x.shape[0], 1, x.shape[1], x.shape[2]])
+    return x, y

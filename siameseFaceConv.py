@@ -10,29 +10,29 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 
 
-samp_f = 3
-total_to_samp = 64000
+samp_f = 2
+total_to_samp = 80000
 x_train, y_train = createFaceData.gen_train_data_for_conv(samp_f, total_to_samp)
 x_test, y_test = createFaceData.gen_train_data_for_conv(samp_f, total_to_samp)
 
 inp_shape = x_train.shape[1:]
 
 mini_batch = 32
-no_epoch = 5
+no_epoch = 20
 TEST = True
 kern_size = 3
-nb_filter = [6, 12]
+nb_filter = [32, 16]
 
 model = Sequential()
 # 6 filters
 model.add(Convolution2D(nb_filter[0], kern_size, kern_size, input_shape=inp_shape))
 model.add(Activation('linear'))
-model.add(MaxPooling2D(pool_size=(2, 2)))  # downsample, sort of
+model.add(MaxPooling2D(pool_size=(2, 2)))  # downsample
 model.add(Dropout(.25))
 # 12 filters
 model.add(Convolution2D(nb_filter[1], kern_size, kern_size))
 model.add(Activation('linear'))
-model.add(MaxPooling2D(pool_size=(2, 2)))  # downsample, sort of
+model.add(MaxPooling2D(pool_size=(2, 2)))  # downsample
 model.add(Dropout(.25))
 
 # now flatten

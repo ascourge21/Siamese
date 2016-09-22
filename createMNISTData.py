@@ -39,10 +39,12 @@ def get_train_for_a_class(x_train, y_l, label):
 
 def get_train_data(total_to_samp, total_classes):
     samp_f = 2
-    x_train, y_train, y_l = load_mnist_train()
-    # x_train = pickle.load(open("x_train.p", "rb"))
-    # y_train = pickle.load(open("y_train.p", "rb"))
-    # y_l = pickle.load(open("y_l.p", "rb"))
+    # x_train, y_train, y_l = load_mnist_train()
+    # pickle.dump(x_train, open('x_train.p', 'wb'))
+    # pickle.dump(y_train, open('y_train.p', 'wb'))
+    # pickle.dump(y_l, open('y_l.p', 'wb'))
+    x_train = pickle.load(open("x_train.p", "rb"))
+    y_l = pickle.load(open("y_l.p", "rb"))
 
     total_per_class = 1000
     orig_dim = 784
@@ -130,3 +132,15 @@ def get_train_data(total_to_samp, total_classes):
     y_train = np.concatenate([y_tr_m, y_tr_n], axis=0)
 
     return x_train, y_train
+
+
+def get_data_for_classification():
+    x_train = pickle.load(open('x_train.p', 'rb'))
+    y_train = pickle.load(open("y_train.p", "rb"))
+
+    x_tr_m = np.zeros([x_train.shape[0], 1, 28, 28])
+
+    for i in range(x_train.shape[0]):
+        x_tr_m[i, 0, :, :] = np.reshape(x_train[i, :], [28, 28])
+
+    return x_tr_m, y_train
