@@ -57,7 +57,7 @@ y_est_norep = label
 print("accuracy is: " + str(accuracy_score(y_test_norep, y_est_norep)))
 print("confusion matrix:")
 print(confusion_matrix(y_test_norep, y_est_norep))
-print('gogo-dogo-fogo')
+print('gogo-dogo')
 
 
 
