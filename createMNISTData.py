@@ -22,7 +22,7 @@ def load_mnist_train():
         x[i, :] = mnist_train[i][0].T
         y[i, :] = mnist_train[i][1].T
         y_l[i] = mnist_train[i][2]
-    return x, y, y_l
+    return x.astype('float32'), y.astype('float32'), y_l.astype('float32')
 
 
 def get_train_for_a_class(x_train, y_l, label):
@@ -37,8 +37,7 @@ def get_train_for_a_class(x_train, y_l, label):
     return x_train_lbl
 
 
-def get_train_data(total_to_samp, total_classes):
-    samp_f = 2
+def get_train_data(samp_f, total_to_samp, total_classes):
     # x_train, y_train, y_l = load_mnist_train()
     # pickle.dump(x_train, open('x_train.p', 'wb'))
     # pickle.dump(y_train, open('y_train.p', 'wb'))
@@ -80,8 +79,8 @@ def get_train_data(total_to_samp, total_classes):
             if samp_f > 1:
                 x_a = np.reshape(x_a, [28, 28])
                 x_b = np.reshape(x_b, [28, 28])
-                x_a = np.reshape(x_a[::samp_f, ::samp_f], [orig_dim/(samp_f*samp_f), ])
-                x_b = np.reshape(x_b[::samp_f, ::samp_f], [orig_dim/(samp_f*samp_f), ])
+                x_a = np.reshape(x_a[::samp_f, ::samp_f], [int(orig_dim/(samp_f*samp_f)), ])
+                x_b = np.reshape(x_b[::samp_f, ::samp_f], [int(orig_dim/(samp_f*samp_f)), ])
 
             x_tr_m[count, :] = x_a
             y_tr_m[count] = 1
@@ -118,8 +117,8 @@ def get_train_data(total_to_samp, total_classes):
         if samp_f > 1:
             x_a = np.reshape(x_a, [28, 28])
             x_b = np.reshape(x_b, [28, 28])
-            x_a = np.reshape(x_a[::samp_f, ::samp_f], [orig_dim/(samp_f*samp_f), ])
-            x_b = np.reshape(x_b[::samp_f, ::samp_f], [orig_dim/(samp_f*samp_f), ])
+            x_a = np.reshape(x_a[::samp_f, ::samp_f], [int(orig_dim/(samp_f*samp_f)), ])
+            x_b = np.reshape(x_b[::samp_f, ::samp_f], [int(orig_dim/(samp_f*samp_f)), ])
 
         x_tr_n[count, :] = x_a
         y_tr_n[count] = 0
@@ -131,7 +130,102 @@ def get_train_data(total_to_samp, total_classes):
     x_train = np.concatenate([x_tr_m, x_tr_n], axis=0)
     y_train = np.concatenate([y_tr_m, y_tr_n], axis=0)
 
-    return x_train, y_train
+    return x_train.astype('float32'), y_train.astype('float32')
+
+
+def get_train_data_for_conv(samp_f, total_to_samp, total_classes):
+    # x_train, y_train, y_l = load_mnist_train()
+    # pickle.dump(x_train, open('x_train.p', 'wb'))
+    # pickle.dump(y_train, open('y_train.p', 'wb'))
+    # pickle.dump(y_l, open('y_l.p', 'wb'))
+    x_train = pickle.load(open("x_train.p", "rb"))
+    y_l = pickle.load(open("y_l.p", "rb"))
+
+    total_per_class = 1000
+    orig_dim = 784
+    x_train_labeled = np.zeros([total_per_class, orig_dim, total_classes])
+    for i in range(total_classes):
+        x_train_labeled[:, :, i] = get_train_for_a_class(x_train, y_l, i)
+
+    x_tr_m = np.zeros([total_to_samp, 1, int(28/samp_f), int(28/samp_f)])
+    y_tr_m = np.zeros([total_to_samp, 1])
+    count = 0
+    for i in range(int(total_to_samp/(2*total_classes))):
+        for j in range(total_classes):
+            ind1 = 0
+            ind2 = 0
+            while True:
+                ind1 = np.random.randint(total_per_class)
+                ind2 = np.random.randint(total_per_class)
+                if ind1 != ind2:
+                    break
+            # print(ind1)
+            # print(ind2)
+
+            x_a = x_train_labeled[ind1, :, j]
+            x_b = x_train_labeled[ind2, :, j]
+            x_a = np.reshape(x_a, [28, 28])
+            x_b = np.reshape(x_b, [28, 28])
+
+            # plt.figure(1)
+            # plt.imshow(np.reshape(x_a, [28, 28]), cmap='Greys_r')
+            # plt.figure(2)
+            # plt.imshow(np.reshape(x_b, [28, 28]), cmap='Greys_r')
+            # plt.show()
+
+            if samp_f > 1:
+                x_a = x_a[::samp_f, ::samp_f]
+                x_b = x_b[::samp_f, ::samp_f]
+
+            x_tr_m[count, 0, :, :] = x_a
+            y_tr_m[count] = 1
+            count += 1
+            x_tr_m[count, 0, :, :] = x_b
+            y_tr_m[count] = 1
+            count += 1
+
+    # total_to_samp = 32000
+    x_tr_n = np.zeros([total_to_samp, 1, int(28/samp_f), int(28/samp_f)])
+    y_tr_n = np.zeros([total_to_samp, 1])
+    count = 0
+    for i in range(int(total_to_samp/2)):
+        ind1 = 0
+        ind2 = 0
+        while True:
+            ind1 = np.random.randint(total_classes)
+            ind2 = np.random.randint(total_classes)
+            if ind1 != ind2:
+                break
+        # print(ind1)
+        # print(ind2)
+
+        # get data and reshape if necessary
+        x_a = x_train_labeled[np.random.randint(total_per_class), :, ind1]
+        x_b = x_train_labeled[np.random.randint(total_per_class), :, ind2]
+        x_a = np.reshape(x_a, [28, 28])
+        x_b = np.reshape(x_b, [28, 28])
+
+        # plt.figure(1)
+        # plt.imshow(np.reshape(x_a, [28, 28]), cmap='Greys_r')
+        # plt.figure(2)
+        # plt.imshow(np.reshape(x_b, [28, 28]), cmap='Greys_r')
+        # plt.show()
+
+        if samp_f > 1:
+            x_a = x_a[::samp_f, ::samp_f]
+            x_b = x_b[::samp_f, ::samp_f]
+
+        x_tr_n[count, 0, :, :] = x_a
+        y_tr_n[count] = 0
+        count += 1
+        x_tr_n[count, 0, :, :] = x_b
+        y_tr_n[count] = 0
+        count += 1
+
+    x_train = np.concatenate([x_tr_m, x_tr_n], axis=0)
+    y_train = np.concatenate([y_tr_m, y_tr_n], axis=0)
+
+    return x_train.astype('float32'), y_train.astype('float32')
 
 
 def get_data_for_classification():
@@ -143,4 +237,4 @@ def get_data_for_classification():
     for i in range(x_train.shape[0]):
         x_tr_m[i, 0, :, :] = np.reshape(x_train[i, :], [28, 28])
 
-    return x_tr_m, y_train
+    return x_tr_m.astype('float32'), y_train.astype('float32')
