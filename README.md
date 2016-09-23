@@ -5,6 +5,7 @@ A Keras implementation of Siamese neural net is provide here as python scripts.
 Convolution and simple dense layer based networks are experimented with.
 
 Siamese architecture and cost function is based on the discussion found in this page: https://github.com/fchollet/keras/issues/242.
+* Now updated to this strategy: https://gist.github.com/mmmikael/0a3d4fae965bdbec1f9d
 
 The AT&T face databased is used for testing and downloaded from here: http://www.cl.cam.ac.uk/research/dtg/attarchive/facedatabase.html
 
