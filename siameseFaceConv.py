@@ -43,7 +43,7 @@ def create_base_network(input_d):
     '''Base network to be shared (eq. to feature extraction).
     '''
     seq = Sequential()
-    nb_filter = [4, 8]
+    nb_filter = [6, 12]
     kern_size = 3
     # conv layers
     # seq.add(Reshape((1, 38, 31), input_shape=(38, 31)))
@@ -67,8 +67,8 @@ def create_base_network(input_d):
 
 
 # get the data
-samp_f = 3
-total_to_samp = 20000
+samp_f = 2
+total_to_samp = 50000
 x, y = createFaceData.gen_train_data_for_conv_new(samp_f, total_to_samp)
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.25)
 
@@ -88,13 +88,13 @@ distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([proc
 model = Model(input=[input_a, input_b], output=distance)
 
 # train
-nb_epoch = 10
+nb_epoch = 15
 rms = RMSprop()
 model.compile(loss=contrastive_loss, optimizer=rms)
 xtr1 = x_train[:, 0]
-xtr2 = x_train[:, 0]
+xtr2 = x_train[:, 1]
 model.fit([xtr1, xtr2], y_train, validation_split=.25,
-          batch_size=32, verbose=2, nb_epoch=nb_epoch)
+          batch_size=128, verbose=2, nb_epoch=nb_epoch)
 
 # compute final accuracy on training and test sets
 pred = model.predict([x_train[:, 0], x_train[:, 1]])

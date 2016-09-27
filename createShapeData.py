@@ -63,3 +63,24 @@ def get_shape_data(train_pct):
 
     return x_train, x_test, y_train, y_test
 
+
+def get_shape_data_paired_format():
+    # total length of data should be 2* (24,000 + 46,000) = 140,000
+    src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/matconvnet-1.0-beta21/cardiac_data/'
+    x_match_a = pd.read_csv(src + 'X_match_a.csv', header=None).as_matrix().astype('float32')
+    x_match_b = pd.read_csv(src + 'X_match_b.csv', header=None).as_matrix().astype('float32')
+    x_non_match_a = pd.read_csv(src + 'X_non_match_a.csv', header=None).as_matrix().astype('float32')
+    x_non_match_b = pd.read_csv(src + 'X_non_match_b.csv', header=None).as_matrix().astype('float32')
+
+    x_match = np.concatenate([x_match_a, x_match_b], axis=1)
+    x_match = np.reshape(x_match, [x_match.shape[0], 2, int(x_match.shape[1]/2)])
+    y_match = np.ones([x_match.shape[0], 1])
+
+    x_non_match = np.concatenate([x_non_match_a, x_non_match_b], axis=1)
+    x_non_match = np.reshape(x_non_match, [x_non_match.shape[0], 2, int(x_non_match.shape[1] / 2)])
+    y_non_match = np.zeros([x_non_match.shape[0], 1])
+
+    x_out = np.concatenate([x_match, x_non_match]).astype('float32')
+    y_out = np.concatenate([y_match, y_non_match]).astype('float32')
+
+    return x_out, y_out

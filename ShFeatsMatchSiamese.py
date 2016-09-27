@@ -1,56 +1,110 @@
 import numpy as np
-from keras.models import Sequential
 from keras.optimizers import SGD, RMSprop
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.core import Lambda
+from keras.layers import Input, Dense, Dropout
+from keras.regularizers import WeightRegularizer, l2
+from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping
-import createShapeData
-import matplotlib as mlp
+
+import pickle
 from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score
-from sklearn import cross_validation
+from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
+from sklearn.cross_validation import train_test_split
 
-x_train, x_test, y_train, y_test = createShapeData.get_shape_data(.70)
+import createShapeData
+from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
+    contrastive_loss
 
-model_a = Sequential()
-model_a.add(Dense(200, input_shape=(x_train.shape[1],)))
-model_a.add(Activation('linear'))
-model_a.add(Dropout(.25))
-model_a.add(Dense(100))
-model_a.add(Activation('linear'))
-model_a.add(Dropout(.25))
-model_a.add(Dense(50))
-model_a.add(Activation('linear'))
-rms = RMSprop()
-model_a.compile(loss='siamese_euclidean', optimizer=rms)
 
-mini_batch = 20
-no_epoch = 10
-model_a.fit(x_train, y_train, batch_size=mini_batch, nb_epoch=no_epoch, verbose=1,
-          show_accuracy=True, validation_split=.25, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+def create_base_network_w_stabality(input_d, hidden_layer_size):
+    '''Base network to be shared (eq. to feature extraction).
+    '''
+    seq = Sequential()
+    for i in range(len(hidden_layer_size)):
+        if i == 0:
+            seq.add(Dense(hidden_layer_size[i], input_shape=(input_d,), activation='relu', W_regularizer=l2(.0001)))
+        else:
+            seq.add(Dense(hidden_layer_size[i], activation='relu', W_regularizer=l2(.0001)))
+        seq.add(Dropout(0.1))
+    return seq
 
-y_ts_est = model_a.predict(x_test, batch_size=mini_batch)
-pair_errors = ((y_ts_est[0::2] - y_ts_est[1::2]) ** 2).sum(axis=1, keepdims=True)
-print('replicating the loss for training: ' + str(((pair_errors - y_test[0::2])**2).mean()))
 
-# plot pair errors
-pair_error_median = np.median(pair_errors)
-threshold = pair_error_median*.01
-plt.plot(pair_errors)
-plt.hold(True)
-plt.plot(threshold*np.ones(pair_errors.shape), 'r')
-plt.savefig('pair_errors.png')
+x, y = createShapeData.get_shape_data_paired_format()
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.25)
+
+# check data
+ind_to_sel = np.random.randint(x_train.shape[0])
+xia = x_train[ind_to_sel, 0, :]
+xib = x_train[ind_to_sel, 1, :]
+if y_train[ind_to_sel] == 1:
+    print('matching')
+else:
+    print('non matching')
 plt.hold(False)
+plt.plot(xia, 'r')
+plt.hold(True)
+plt.plot(xib, 'g')
+plt.hold(False)
+plt.savefig('shape_pairs.png')
 
-label = np.zeros(pair_errors.shape)
-for i in range(int(y_ts_est.shape[0]/2)):
-    if pair_errors[i] > threshold:
-        label[i] = 0
-    else:
-        label[i] = 1
+# because we re-use the same instance `base_network`,
+# the weights of the network
+# will be shared across the two branches
+input_dim = x_train.shape[2]
+input_a = Input(shape=(input_dim,))
+input_b = Input(shape=(input_dim,))
+hidden_layer_sizes = [128, 128, 128]
+base_network = create_base_network(input_dim, hidden_layer_sizes)
+processed_a = base_network(input_a)
+processed_b = base_network(input_b)
 
-y_test_norep = y_test[0::2]
-y_est_norep = label
-print("accuracy is: " + str(accuracy_score(y_test_norep, y_est_norep)))
-print("confusion matrix:")
-print(confusion_matrix(y_test_norep, y_est_norep))
+distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([processed_a, processed_b])
+
+model = Model(input=[input_a, input_b], output=distance)
+
+# train
+nb_epoch = 10
+# opt_func = RMSprop(lr=.0005, clipnorm=1)
+opt_func = RMSprop()
+model.compile(loss=contrastive_loss, optimizer=opt_func)
+model.fit([x_train[:, 0], x_train[:, 1]], y_train, validation_split=.30,
+          batch_size=100, verbose=2, nb_epoch=nb_epoch, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+
+# compute final accuracy on training and test sets
+pred_tr = model.predict([x_train[:, 0], x_train[:, 1]])
+pred_ts = model.predict([x_test[:, 0], x_test[:, 1]])
+
+
+tpr, fpr, _ = roc_curve(y_test, pred_ts)
+roc_auc = auc(fpr, tpr)
+
+plt.figure(1)
+plt.plot(fpr, tpr, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.hold(True)
+plt.plot([0, 1], [0, 1], 'k--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver operating characteristic example')
+plt.legend(loc="lower right")
+plt.hold(False)
+plt.savefig('roc-curve.png')
+
+thresh = .13
+tr_acc = accuracy_score(y_train, (pred_tr < thresh).astype('float32'))
+te_acc = accuracy_score(y_test, (pred_ts < thresh).astype('float32'))
+print('* Accuracy on training set: %0.2f%%' % (100 * tr_acc))
+print('* Accuracy on test set: %0.2f%%' % (100 * te_acc))
+print('* Mean of error less than  thresh (match): %0.3f%%' % np.mean(pred_ts[pred_ts < thresh]))
+print('* Mean of error more than  thresh (no match): %0.3f%%' % np.mean(pred_ts[pred_ts >= thresh]))
+print("* test case confusion matrix:")
+print(confusion_matrix((pred_ts < thresh).astype('float32'), y_test))
+plt.figure(2)
+plt.plot(np.concatenate([pred_ts[y_test == 1], pred_ts[y_test == 0]]))
+plt.hold(True)
+plt.plot(np.ones(pred_ts.shape)*thresh, 'r')
+plt.hold(False)
+plt.savefig('pair_errors.png')
+
+pickle.dump(model, open('shape_match_model.pl', 'wb'))
