@@ -9,6 +9,7 @@ import sys
 
 from scipy.io import loadmat, savemat
 
+
 src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/shortest_paths/shortest_paths_3d/nbor_shp_data/'
 
 if os.path.isfile(src + '/nbor_shp_all_1.mat'):
@@ -24,7 +25,7 @@ if os.path.isfile(src + '/nbor_shp_all_1.mat'):
 
         x_out = {"pair_cost": model_pred}
         savemat(src+'/nbors_cost_' + str(i+1) + '.mat', x_out)
-        print('shape cost generated for frame: ' + str(i+1))
+        print('match cost generated for frame: ' + str(i+1))
 else:
     print('nbor_shp_all_1.mat not found')
 

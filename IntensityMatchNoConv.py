@@ -1,39 +1,40 @@
 import numpy as np
 from keras.optimizers import SGD, RMSprop
 from keras.layers.core import Lambda
-from keras.layers import Input, Dense, Dropout
+from keras.layers import Input, Dense, Dropout, Convolution3D, MaxPooling3D, Flatten
 from keras.regularizers import WeightRegularizer, l2
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping
 
-import pickle
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
 from sklearn.cross_validation import train_test_split
 
 import createShapeData
-from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
-    contrastive_loss
+from SiameseFunctions import eucl_dist_output_shape, euclidean_distance, \
+    contrastive_loss, compute_accuracy
 
+
+# a CNN layer for intensity inputs
+def create_base_network(input_d, hidden_layer_size):
+    '''Base network to be shared (eq. to feature extraction).
+    '''
+    seq = Sequential()
+    for i in range(len(hidden_layer_size)):
+        if i == 0:
+            seq.add(Dense(hidden_layer_size[i], input_shape=(input_d,), activation='relu'))
+        else:
+            seq.add(Dense(hidden_layer_size[i], activation='relu'))
+        if i < len(hidden_layer_size)-1:
+            seq.add(Dropout(0.2))
+    return seq
 
 # load data
-x, y = createShapeData.get_shape_data_paired_format()
+src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/matconvnet-1.0-beta21/cardiac_data/'
+data_name = 'x_data_intensity_endo'
+x, y = createShapeData.get_int_paired_format_flattened(src, data_name)
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.25)
 
-# check data
-ind_to_sel = np.random.randint(x_train.shape[0])
-xia = x_train[ind_to_sel, 0, :]
-xib = x_train[ind_to_sel, 1, :]
-if y_train[ind_to_sel] == 1:
-    print('matching')
-else:
-    print('non matching')
-plt.hold(False)
-plt.plot(xia, 'r')
-plt.hold(True)
-plt.plot(xib, 'g')
-plt.hold(False)
-plt.savefig('shape_pairs.png')
 
 # because we re-use the same instance `base_network`,
 # the weights of the network
@@ -41,7 +42,7 @@ plt.savefig('shape_pairs.png')
 input_dim = x_train.shape[2]
 input_a = Input(shape=(input_dim,))
 input_b = Input(shape=(input_dim,))
-hidden_layer_sizes = [128, 128, 128]
+hidden_layer_sizes = [400, 200, 100]
 base_network = create_base_network(input_dim, hidden_layer_sizes)
 processed_a = base_network(input_a)
 processed_b = base_network(input_b)
@@ -52,13 +53,12 @@ model = Model(input=[input_a, input_b], output=distance)
 
 # train
 nb_epoch = 10
-# opt_func = RMSprop(lr=.0005, clipnorm=1)
-opt_func = RMSprop()
-model.compile(loss=contrastive_loss, optimizer=opt_func)
-model.fit([x_train[:, 0], x_train[:, 1]], y_train, validation_split=.30,
-          batch_size=100, verbose=2, nb_epoch=nb_epoch, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
-pickle.dump(model, open('shape_match_model.pl', 'wb'))
+rms = RMSprop()
+model.compile(loss=contrastive_loss, optimizer=rms)
+model.fit([x_train[:, 0], x_train[:, 1]], y_train, validation_split=.25,
+          batch_size=32, verbose=2, nb_epoch=nb_epoch)
 
+model.save('shape_match_model_int_patch_simple.h5')
 # compute final accuracy on training and test sets
 pred_tr = model.predict([x_train[:, 0], x_train[:, 1]])
 pred_ts = model.predict([x_test[:, 0], x_test[:, 1]])
@@ -78,9 +78,9 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver operating characteristic example')
 plt.legend(loc="lower right")
 plt.hold(False)
-plt.savefig('roc-curve.png')
+plt.savefig('roc_curve_endo.png')
 
-thresh = .12
+thresh = .5
 tr_acc = accuracy_score(y_train, (pred_tr < thresh).astype('float32'))
 te_acc = accuracy_score(y_test, (pred_ts < thresh).astype('float32'))
 print('* Accuracy on training set: %0.2f%%' % (100 * tr_acc))
@@ -94,4 +94,4 @@ plt.plot(np.concatenate([pred_ts[y_test == 1], pred_ts[y_test == 0]]))
 plt.hold(True)
 plt.plot(np.ones(pred_ts.shape)*thresh, 'r')
 plt.hold(False)
-plt.savefig('pair_errors.png')
+plt.savefig('pair_errors_endo.png')

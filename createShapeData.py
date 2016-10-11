@@ -5,6 +5,8 @@
 import numpy as np
 import pandas as pd
 
+from scipy.io import loadmat, savemat
+
 
 def get_shape_data(train_pct):
     # total length of data should be 2* (24,000 + 46,000) = 140,000
@@ -78,6 +80,60 @@ def get_shape_data_paired_format():
 
     x_non_match = np.concatenate([x_non_match_a, x_non_match_b], axis=1)
     x_non_match = np.reshape(x_non_match, [x_non_match.shape[0], 2, int(x_non_match.shape[1] / 2)])
+    y_non_match = np.zeros([x_non_match.shape[0], 1])
+
+    x_out = np.concatenate([x_match, x_non_match]).astype('float32')
+    y_out = np.concatenate([y_match, y_non_match]).astype('float32')
+
+    return x_out, y_out
+
+
+def get_int_paired_format(src, data_name):
+    # total length of data should be 2* (24,000 + 46,000) = 140,000
+
+    shape_data = loadmat(src + data_name)
+    x_match_a = shape_data.get('X_match_a').astype('float32')
+    x_match_b = shape_data.get('X_match_b').astype('float32')
+    x_non_match_a = shape_data.get('X_non_match_a').astype('float32')
+    x_non_match_b = shape_data.get('X_non_match_b').astype('float32')
+
+    x_match_a = x_match_a.reshape([x_match_a.shape[0], 1, 1, x_match_a.shape[1], x_match_a.shape[2], x_match_a.shape[3]])
+    x_match_b = x_match_b.reshape([x_match_b.shape[0], 1, 1, x_match_b.shape[1], x_match_b.shape[2], x_match_b.shape[3]])
+    x_match = np.concatenate([x_match_a, x_match_b], axis=1)
+    y_match = np.ones([x_match.shape[0], 1])
+
+    x_non_match_a = x_non_match_a.reshape([x_non_match_a.shape[0], 1, 1, x_non_match_a.shape[1], x_non_match_a.shape[2],
+                                           x_non_match_a.shape[3]])
+    x_non_match_b = x_non_match_b.reshape([x_non_match_b.shape[0], 1, 1, x_non_match_b.shape[1], x_non_match_b.shape[2],
+                                           x_non_match_b.shape[3]])
+    x_non_match = np.concatenate([x_non_match_a, x_non_match_b], axis=1)
+    y_non_match = np.zeros([x_non_match.shape[0], 1])
+
+    x_out = np.concatenate([x_match, x_non_match]).astype('float32')
+    y_out = np.concatenate([y_match, y_non_match]).astype('float32')
+
+    return x_out, y_out
+
+
+def get_int_paired_format_flattened(src, data_name):
+    # total length of data should be 2* (24,000 + 46,000) = 140,000
+
+    shape_data = loadmat(src + data_name)
+    x_match_a = shape_data.get('X_match_a').astype('float32')
+    x_match_b = shape_data.get('X_match_b').astype('float32')
+    x_non_match_a = shape_data.get('X_non_match_a').astype('float32')
+    x_non_match_b = shape_data.get('X_non_match_b').astype('float32')
+
+    x_match_a = x_match_a.reshape([x_match_a.shape[0], 1, x_match_a.shape[1]*x_match_a.shape[2]*x_match_a.shape[3]])
+    x_match_b = x_match_b.reshape([x_match_b.shape[0], 1, x_match_b.shape[1]*x_match_b.shape[2]*x_match_b.shape[3]])
+    x_match = np.concatenate([x_match_a, x_match_b], axis=1)
+    y_match = np.ones([x_match.shape[0], 1])
+
+    x_non_match_a = x_non_match_a.reshape([x_non_match_a.shape[0], 1,
+                                           x_non_match_a.shape[1]*x_non_match_a.shape[2]*x_non_match_a.shape[3]])
+    x_non_match_b = x_non_match_b.reshape([x_non_match_b.shape[0], 1,
+                                           x_non_match_b.shape[1]*x_non_match_b.shape[2]*x_non_match_b.shape[3]])
+    x_non_match = np.concatenate([x_non_match_a, x_non_match_b], axis=1)
     y_non_match = np.zeros([x_non_match.shape[0], 1])
 
     x_out = np.concatenate([x_match, x_non_match]).astype('float32')

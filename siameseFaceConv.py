@@ -68,7 +68,7 @@ def create_base_network(input_d):
 
 # get the data
 samp_f = 2
-total_to_samp = 50000
+total_to_samp = 10000
 x, y = createFaceData.gen_train_data_for_conv_new(samp_f, total_to_samp)
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.25)
 
