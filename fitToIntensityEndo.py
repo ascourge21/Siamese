@@ -10,7 +10,7 @@ import sys
 from keras.models import load_model
 from scipy.io import loadmat, savemat
 
-MODEL_NAME = 'shape_match_model_endo_diverse_non_match.h5'
+MODEL_NAME = 'shape_match_model_endo_normal.h5'
 
 src = sys.argv[1]
 # src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/shortest_paths/shortest_paths_3d/nbor_shp_data/'
@@ -22,7 +22,7 @@ if os.path.isfile(src + 'nbor_int_all_' + rand_idf + '_1.mat'):
     intensity_model = load_model(MODEL_NAME)
 
     no_of_files = int(sys.argv[3])
-    print('Processing epi, total  of: ' + str(no_of_files) + ' files.')
+    print('Processing endo, total  of: ' + str(no_of_files) + ' files.')
 
     for i in range(no_of_files):
         shape_data = loadmat(src + 'nbor_int_all_' + rand_idf + '_' + str(i+1) + '.mat')

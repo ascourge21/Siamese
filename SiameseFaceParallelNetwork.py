@@ -1,16 +1,43 @@
 import numpy as np
 from keras.optimizers import SGD, RMSprop
-from keras.layers import Input, Lambda, Dense, Dropout
-from keras.models import Model
+from keras.layers import Input, Lambda, Dense, Dropout, merge
+from keras.models import Model, Sequential
+from keras.engine.topology import Merge
 from keras.callbacks import EarlyStopping
+
 
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix, roc_curve, auc, accuracy_score
 from sklearn.cross_validation import train_test_split
 
 import createFaceData
-from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, contrastive_loss, compute_accuracy
+from SiameseFunctions import eucl_dist_output_shape, euclidean_distance, contrastive_loss, compute_accuracy
 
+
+def create_base_network_deep(input_d):
+    '''Base network to be shared (eq. to feature extraction).
+    '''
+    seq = Sequential()
+
+    seq.add(Dense(200, input_shape=(input_d,), activation='relu'))
+    seq.add(Dropout(0.1))
+    seq.add(Dense(100, activation='relu'))
+    seq.add(Dropout(0.1))
+    # seq.add(Dense(50, activation='relu'))
+    # seq.add(Dropout(0.1))
+
+    return seq
+
+
+def create_base_network_shallow(input_d):
+    '''Base network to be shared (eq. to feature extraction).
+    '''
+    seq = Sequential()
+
+    seq.add(Dense(100, input_shape=(input_d,), activation='relu'))
+    seq.add(Dropout(0.1))
+
+    return seq
 
 # get the data
 samp_f = 3
@@ -26,17 +53,31 @@ x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.25)
 input_dim = x_train.shape[2]
 input_a = Input(shape=(input_dim,))
 input_b = Input(shape=(input_dim,))
-hidden_layer_sizes = [200, 100, 50]
-base_network = create_base_network(input_dim, hidden_layer_sizes)
-processed_a = base_network(input_a)
-processed_b = base_network(input_b)
 
-distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([processed_a, processed_b])
+# stream 1
+deep_network = create_base_network_deep(input_dim)
+processed_a = deep_network(input_a)
+processed_b = deep_network(input_b)
 
+# stream 2
+shallow_network = create_base_network_shallow(input_dim)
+processed_c = shallow_network(input_a)
+processed_d = shallow_network(input_b)
+
+# merge stream 1 and 2
+merged_a = merge([processed_a, processed_c], mode='concat', concat_axis=1)
+merged_a = Dense(50, activation='relu')(merged_a)
+merged_b = merge([processed_b, processed_d], mode='concat', concat_axis=1)
+merged_b = Dense(50, activation='relu')(merged_b)
+
+# this calls our custom distance function
+distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([merged_a, merged_b])
+
+# use this for model with multiple inputs, custom output
 model = Model(input=[input_a, input_b], output=distance)
 
 # train
-nb_epoch = 10
+nb_epoch = 15
 rms = RMSprop()
 model.compile(loss=contrastive_loss, optimizer=rms)
 model.fit([x_train[:, 0], x_train[:, 1]], y_train, validation_split=.25,
@@ -62,7 +103,7 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver operating characteristic example')
 plt.legend(loc="lower right")
 plt.hold(False)
-plt.savefig('roc_curve_face.png')
+plt.savefig('roc_curve_face_parallel.png')
 
 thresh = .35
 tr_acc = accuracy_score(y_train, (pred_tr < thresh).astype('float32'))

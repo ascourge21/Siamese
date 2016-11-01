@@ -10,7 +10,7 @@ import sys
 from keras.models import load_model
 from scipy.io import loadmat, savemat
 
-MODEL_NAME = 'shape_match_model_epi_diverse_non_match.h5'
+MODEL_NAME = 'shape_match_model_epi.h5'
 
 src = sys.argv[1]
 # src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/shortest_paths/shortest_paths_3d/nbor_shp_data/'

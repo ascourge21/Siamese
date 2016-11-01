@@ -27,25 +27,20 @@ def create_cnn_network(input_dim):
     seq.add(Convolution3D(nb_filter[0], kern_size, kern_size, kern_size, input_shape=input_dim,
                           border_mode='valid', dim_ordering='th', activation='relu'))
     # seq.add(MaxPooling3D(pool_size=(2, 2, 2)))  # downsample
-    seq.add(Dropout(.25))
+    seq.add(Dropout(.1))
 
-    # conv layer 2
-    # seq.add(Convolution3D(nb_filter[1], kern_size, kern_size, kern_size, border_mode='valid', dim_ordering='th',
-    #                       activation='relu'))
-    # # seq.add(MaxPooling3D(pool_size=(2, 2, 2), dim_ordering='th'))  # downsample
-    # seq.add(Dropout(.25))
 
     # dense layers
     seq.add(Flatten())
     seq.add(Dense(100, activation='relu'))
-    seq.add(Dropout(0.2))
+    seq.add(Dropout(0.1))
     seq.add(Dense(50, activation='relu'))
     return seq
 
 # load data
 src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/matconvnet-1.0-beta21/cardiac_data/'
-data_name = 'x_data_intensity_endo_random'
-save_name = 'shape_match_model_endo_diverse_non_match.h5'
+data_name = 'x_data_intensity_endo_2'
+save_name = 'shape_match_model_endo_normal.h5'
 
 x, y = createShapeData.get_int_paired_format(src, data_name)
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.25)
@@ -66,7 +61,7 @@ distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([proc
 model = Model(input=[input_a, input_b], output=distance)
 
 # train
-nb_epoch = 10
+nb_epoch = 15
 # opt_func = RMSprop(lr=.0005, clipnorm=1)
 opt_func = RMSprop()
 model.compile(loss=contrastive_loss, optimizer=opt_func)
