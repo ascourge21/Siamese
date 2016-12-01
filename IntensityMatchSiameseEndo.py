@@ -20,7 +20,7 @@ def create_cnn_network(input_dim):
     '''Base network to be shared (eq. to feature extraction).
     '''
     seq = Sequential()
-    nb_filter = [12, 6]
+    nb_filter = [16, 6]
     kern_size = 3
 
     # conv layers
@@ -28,7 +28,6 @@ def create_cnn_network(input_dim):
                           border_mode='valid', dim_ordering='th', activation='relu'))
     # seq.add(MaxPooling3D(pool_size=(2, 2, 2)))  # downsample
     seq.add(Dropout(.1))
-
 
     # dense layers
     seq.add(Flatten())
@@ -38,12 +37,12 @@ def create_cnn_network(input_dim):
     return seq
 
 # load data
-src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/matconvnet-1.0-beta21/cardiac_data/'
-data_name = 'x_data_intensity_endo_2'
-save_name = 'shape_match_model_endo_normal.h5'
+src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
+data_name = 'x_data_intensity_endo'
+save_name = 'shape_match_model_endo.h5'
 
 x, y = createShapeData.get_int_paired_format(src, data_name)
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.25)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.4)
 
 
 # because we re-use the same instance `base_network`,
@@ -65,7 +64,7 @@ nb_epoch = 15
 # opt_func = RMSprop(lr=.0005, clipnorm=1)
 opt_func = RMSprop()
 model.compile(loss=contrastive_loss, optimizer=opt_func)
-model.fit([x_train[:, 0], x_train[:, 1]], y_train, validation_split=.30,
+model.fit([x_train[:, 0], x_train[:, 1]], y_train, validation_split=.4,
           batch_size=32, verbose=2, nb_epoch=nb_epoch, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
 model.save(save_name)
 

@@ -42,19 +42,19 @@ def create_cnn_network_small(input_dim):
     kern_size = 3
 
     # conv layers
-    seq.add(Convolution3D(8, kern_size, kern_size, kern_size, input_shape=input_dim,
+    seq.add(Convolution3D(12, kern_size, kern_size, kern_size, input_shape=input_dim,
                           border_mode='valid', dim_ordering='th', activation='relu'))
     # seq.add(MaxPooling3D(pool_size=(2, 2, 2)))  # downsample
     seq.add(Dropout(.1))
 
     # dense layer
     seq.add(Flatten())
-    seq.add(Dense(50, activation='relu'))
+    seq.add(Dense(100, activation='relu'))
     return seq
 
 
 # load data
-src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/matconvnet-1.0-beta21/cardiac_data/'
+src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
 data_name_large = 'x_data_intensity_endo_large'
 data_name_small = 'x_data_intensity_endo_small'
 save_name = 'shape_match_model_endo_multi_res2.h5'

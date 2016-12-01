@@ -20,10 +20,11 @@ def create_cnn_network(input_dim):
     '''Base network to be shared (eq. to feature extraction).
     '''
     seq = Sequential()
+    nb_filter = [12, 6]
     kern_size = 3
 
     # conv layers
-    seq.add(Convolution3D(12, kern_size, kern_size, kern_size, input_shape=input_dim,
+    seq.add(Convolution3D(nb_filter[0], kern_size, kern_size, kern_size, input_shape=input_dim,
                           border_mode='valid', dim_ordering='th', activation='relu'))
     # seq.add(MaxPooling3D(pool_size=(2, 2, 2)))  # downsample
     seq.add(Dropout(.1))
@@ -34,57 +35,51 @@ def create_cnn_network(input_dim):
     return seq
 
 
-# a CNN layer for intensity inputs
-def create_cnn_network_small(input_dim):
+# a network with a couple dense layers
+def create_simple_network(input_dim):
     '''Base network to be shared (eq. to feature extraction).
     '''
     seq = Sequential()
-    kern_size = 3
 
-    # conv layers
-    seq.add(Convolution3D(8, kern_size, kern_size, kern_size, input_shape=input_dim,
-                          border_mode='valid', dim_ordering='th', activation='relu'))
-    # seq.add(MaxPooling3D(pool_size=(2, 2, 2)))  # downsample
-    seq.add(Dropout(.1))
-
-    # dense layer
-    seq.add(Flatten())
+    seq.add(Dense(100, input_shape=(input_dim,), activation='relu'))
+    seq.add(Dropout(0.1))
     seq.add(Dense(50, activation='relu'))
-    return seq
+    seq.add(Dropout(0.1))
 
+    return seq
 
 # load data
 src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
-data_name_large = 'x_data_intensity_epi_large'
-data_name_small = 'x_data_intensity_epi_small'
-save_name = 'shape_match_model_epi_multi_res2.h5'
+data_name_3d = 'x_data_intensity_epi_large'
+data_name_flat = 'x_data_intensity_epi_small'
+save_name = 'shape_match_model_epi_multi_res.h5'
 
 # the larger patches
-x3d, y3d = createShapeData.get_int_paired_format(src, data_name_large)
+x3d, y3d = createShapeData.get_int_paired_format(src, data_name_3d)
 x_train_3d, x_test_3d, y_train_3d, y_test_3d = train_test_split(x3d, y3d, test_size=.25)
 
 # the smaller patches
-xf, yf = createShapeData.get_int_paired_format(src, data_name_small)
+xf, yf = createShapeData.get_int_paired_format_flattened(src, data_name_flat)
 x_train_f, x_test_f, y_train_f, y_test_f = train_test_split(xf, yf, test_size=.25)
 
 # because we re-use the same instance `base_network`,
 # the weights of the network
 # will be shared across the two branches
-input_dim_lg = x_train_3d.shape[2:]
-input_a = Input(shape=input_dim_lg)
-input_b = Input(shape=input_dim_lg)
+input_dim = x_train_3d.shape[2:]
+input_a = Input(shape=input_dim)
+input_b = Input(shape=input_dim)
 
-input_dim_sm = x_train_f.shape[2:]
-input_c = Input(shape=input_dim_sm)
-input_d = Input(shape=input_dim_sm)
+input_dim2 = x_train_f.shape[2]
+input_c = Input(shape=(input_dim2,))
+input_d = Input(shape=(input_dim2,))
 
 # the layer with convolutions
-cnn_network = create_cnn_network(input_dim_lg)
+cnn_network = create_cnn_network(input_dim)
 processed_a = cnn_network(input_a)
 processed_b = cnn_network(input_b)
 
 # the layer without convolutions, smaller patches
-dense_network = create_cnn_network_small(input_dim_sm)
+dense_network = create_simple_network(input_dim2)
 processed_c = dense_network(input_c)
 processed_d = dense_network(input_d)
 
@@ -101,7 +96,7 @@ distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([merg
 model = Model(input=[input_a, input_b, input_c, input_d], output=distance)
 
 # train
-nb_epoch = 15
+nb_epoch = 20
 opt_func = RMSprop()
 model.compile(loss=contrastive_loss, optimizer=opt_func)
 model.fit([x_train_3d[:, 0], x_train_3d[:, 1], x_train_f[:, 0], x_train_f[:, 1]], y_train_3d, validation_split=.30,
@@ -127,7 +122,7 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver operating characteristic example')
 plt.legend(loc="lower right")
 plt.hold(False)
-plt.savefig('roc_curve_epi_multires_conv.png')
+plt.savefig('roc_curve_epi_multires.png')
 
 thresh = .41
 tr_acc = accuracy_score(y_train_3d, (pred_tr < thresh).astype('float32'))
@@ -143,4 +138,4 @@ plt.plot(np.concatenate([pred_ts[y_test_3d == 1], pred_ts[y_test_3d == 0]]), 'bo
 plt.hold(True)
 plt.plot(np.ones(pred_ts.shape)*thresh, 'r')
 plt.hold(False)
-plt.savefig('pair_errors_epi_multires_conv.png')
+plt.savefig('pair_errors_epi_multires.png')

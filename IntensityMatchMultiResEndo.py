@@ -49,10 +49,10 @@ def create_simple_network(input_dim):
     return seq
 
 # load data
-src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/matconvnet-1.0-beta21/cardiac_data/'
+src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
 data_name_3d = 'x_data_intensity_endo_large'
 data_name_flat = 'x_data_intensity_endo_small'
-save_name = 'shape_match_model_endo_multi_res2.h5'
+save_name = 'shape_match_model_endo_multi_res.h5'
 
 # the larger patches
 x3d, y3d = createShapeData.get_int_paired_format(src, data_name_3d)
@@ -96,7 +96,7 @@ distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([merg
 model = Model(input=[input_a, input_b, input_c, input_d], output=distance)
 
 # train
-nb_epoch = 15
+nb_epoch = 20
 opt_func = RMSprop()
 model.compile(loss=contrastive_loss, optimizer=opt_func)
 model.fit([x_train_3d[:, 0], x_train_3d[:, 1], x_train_f[:, 0], x_train_f[:, 1]], y_train_3d, validation_split=.30,

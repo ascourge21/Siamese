@@ -3,10 +3,11 @@
 """
 
 # import numpy as np
-import pickle
 import os
 import sys
+import h5py
 
+import numpy as np
 from keras.models import load_model
 from scipy.io import loadmat, savemat
 
@@ -17,7 +18,7 @@ src = sys.argv[1]
 
 rand_idf = sys.argv[2]
 
-if os.path.isfile(src + 'nbor_int_all_' + rand_idf + '_1.mat'):
+if os.path.isfile(src + 'patch_pairs_' + rand_idf + '_1.h5'):
     # only load if .mat file is found
     intensity_model = load_model(MODEL_NAME)
 
@@ -25,10 +26,19 @@ if os.path.isfile(src + 'nbor_int_all_' + rand_idf + '_1.mat'):
     print('Processing epi, total  of: ' + str(no_of_files) + ' files.')
 
     for i in range(no_of_files):
-        shape_data = loadmat(src + 'nbor_int_all_' + rand_idf + '_' + str(i+1) + '.mat')
-        x_data = shape_data.get('nbor_int_all').astype('float32')
-        x_data = x_data.reshape([x_data.shape[0], x_data.shape[1], 1, x_data.shape[2], x_data.shape[3],
-                                 x_data.shape[4]])
+        patch_data_file = src + "patch_pairs_" + str(rand_idf) + "_" + str(i + 1) + ".h5"
+        size_file = src + "DIM_" + str(rand_idf) + "_" + str(i+1) + ".h5"
+
+        with h5py.File(size_file, 'r') as hf:
+            DIM = hf.get('DIM')
+            DIM = np.array(DIM).astype('int')
+            DIM = DIM[:, 0]
+            DIM = np.concatenate([DIM[0:2], [1], DIM[2:]])
+
+        with h5py.File(patch_data_file, 'r') as hf:
+            data = hf.get('patch_pairs')
+            np_data = np.array(data).astype('float32')
+        x_data = np.reshape(np_data, DIM)
 
         model_pred = intensity_model.predict([x_data[:, 0], x_data[:, 1]])
 
@@ -38,4 +48,5 @@ if os.path.isfile(src + 'nbor_int_all_' + rand_idf + '_1.mat'):
 else:
     print('file not found')
     print('nbor_int_all_' + rand_idf + '_1.mat not found')
+
 
