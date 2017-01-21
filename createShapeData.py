@@ -85,6 +85,9 @@ def get_shape_data_paired_format():
     x_out = np.concatenate([x_match, x_non_match]).astype('float32')
     y_out = np.concatenate([y_match, y_non_match]).astype('float32')
 
+    if x_out.max() > 1:
+        x_out /= 255
+
     return x_out, y_out
 
 
@@ -112,6 +115,9 @@ def get_int_paired_format(src, data_name):
     x_out = np.concatenate([x_match, x_non_match]).astype('float32')
     y_out = np.concatenate([y_match, y_non_match]).astype('float32')
 
+    if x_out.max() > 1:
+        x_out /= 255
+
     return x_out, y_out
 
 
@@ -138,5 +144,8 @@ def get_int_paired_format_flattened(src, data_name):
 
     x_out = np.concatenate([x_match, x_non_match]).astype('float32')
     y_out = np.concatenate([y_match, y_non_match]).astype('float32')
+
+    if x_out.max() > 1:
+        x_out /= 255
 
     return x_out, y_out

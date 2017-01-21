@@ -1,5 +1,5 @@
 """
-    Here the saved model shall be loaded and fit to matlab data - EPI
+    Here the saved model (deeper) shall be loaded and fit to matlab data - EPI
 """
 
 # import numpy as np
@@ -9,10 +9,10 @@ import h5py
 
 import numpy as np
 from keras.models import load_model
-from scipy.io import loadmat, savemat
+from scipy.io import savemat
 
 # the best model is always saved in the nn_matching_models folder
-MODEL_NAME = 'shape_match_model_epi.h5'
+MODEL_NAME = 'shape_match_model_epi_deep.h5'
 
 src = sys.argv[1]
 # src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/shortest_paths/shortest_paths_3d/nbor_shp_data/'

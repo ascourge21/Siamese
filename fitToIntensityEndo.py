@@ -11,6 +11,7 @@ import numpy as np
 from keras.models import load_model
 from scipy.io import loadmat, savemat
 
+# the best model is always saved in the nn_matching_models folder
 MODEL_NAME = 'shape_match_model_endo.h5'
 
 src = sys.argv[1]
@@ -39,6 +40,9 @@ if os.path.isfile(src + 'patch_pairs_' + rand_idf + '_1.h5'):
             data = hf.get('patch_pairs')
             np_data = np.array(data).astype('float32')
         x_data = np.reshape(np_data, DIM)
+
+        if x_data.max() > 1:
+            x_data /= 255
 
         model_pred = intensity_model.predict([x_data[:, 0], x_data[:, 1]])
 

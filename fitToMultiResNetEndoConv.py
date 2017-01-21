@@ -50,10 +50,16 @@ if os.path.isfile(src + 'patch_pairs_lg_' + rand_idf + '_1.h5'):
         large_dim_file = src + "DIM_lg_" + str(rand_idf) + "_" + str(i+1) + ".h5"
         x_data_lg = get_data(large_patch_file, large_dim_file)
 
+        if x_data_lg.max() > 1:
+            x_data_lg /= 255
+
         # smaller patch, flat
         small_patch_file = src + "patch_pairs_sm_" + str(rand_idf) + "_" + str(i + 1) + ".h5"
         small_dim_file = src + "DIM_sm_" + str(rand_idf) + "_" + str(i+1) + ".h5"
         x_data_sm = get_data(small_patch_file, small_dim_file)
+
+        if x_data_sm.max() > 1:
+            x_data_sm /= 255
 
         # predict
         model_pred = intensity_model.predict([x_data_lg[:, 0], x_data_lg[:, 1], x_data_sm[:, 0], x_data_sm[:, 1]])

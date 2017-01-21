@@ -48,7 +48,7 @@ def get_data_flat(patch_data_file, size_file):
     x_data = np.reshape(np_data, dim)
     return x_data
 
-MODEL_NAME = 'shape_match_model_epi_multi_res.h5'
+MODEL_NAME = '/home/nripesh/Dropbox/research_matlab/nripesh_3d/nn_matching_models/shape_match_model_epi_multi_res.h5'
 
 src = sys.argv[1]
 # src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/shortest_paths/shortest_paths_3d/nbor_shp_data/'
@@ -68,10 +68,16 @@ if os.path.isfile(src + 'patch_pairs_lg_' + rand_idf + '_1.h5'):
         large_dim_file = src + "DIM_lg_" + str(rand_idf) + "_" + str(i+1) + ".h5"
         x_data_lg = get_data(large_patch_file, large_dim_file)
 
+        if x_data_lg.max() > 1:
+            x_data_lg /= 255
+
         # small flat patch
         small_patch_file = src + "patch_pairs_sm_" + str(rand_idf) + "_" + str(i + 1) + ".h5"
         small_dim_file = src + "DIM_sm_" + str(rand_idf) + "_" + str(i+1) + ".h5"
         x_data_sm = get_data_flat(small_patch_file, small_dim_file)
+
+        if x_data_sm.max() > 1:
+            x_data_sm /= 255
 
         # predict
         model_pred = intensity_model.predict([x_data_lg[:, 0], x_data_lg[:, 1], x_data_sm[:, 0], x_data_sm[:, 1]])

@@ -1,0 +1,6 @@
+trained on endo only Leuven model, conv layers frozen: .91
+trained on endo/epi Leuven model, conv layers not frozen: .92
+trained on endo/epi Leuven model, conv layers + 1 dense frozen: .92
+trained on endo/epi Leuven model, conv layers + 2 dense, frozen: .92
+trained on endo/epi Leuven model, only conv layers frozen: .93
+
