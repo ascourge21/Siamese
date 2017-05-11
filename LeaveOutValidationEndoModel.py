@@ -7,6 +7,8 @@ from keras.regularizers import WeightRegularizer, l2
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping
 
+import matplotlib
+matplotlib.use('qt4agg')
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
 from sklearn.cross_validation import train_test_split
@@ -21,26 +23,38 @@ def create_cnn_network(input_dim, no_conv_filt, dense_n):
     '''Base network to be shared (eq. to feature extraction).
     '''
     seq = Sequential()
-    kern_size = 3
 
     # conv layers
-    seq.add(Convolution3D(no_conv_filt, kern_size, kern_size, kern_size, input_shape=input_dim, subsample=(2, 2, 2),
+    kern_size = 3
+    seq.add(Convolution3D(5, kern_size, kern_size, kern_size, input_shape=input_dim,
                           border_mode='valid', dim_ordering='th', activation='relu'))
-    seq.add(Dropout(.1))
+    seq.add(Dropout(.2))
+    seq.add(BatchNormalization(mode=2))
+
+    kern_size = 3
+    seq.add(Convolution3D(10, kern_size, kern_size, kern_size,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
+    seq.add(Dropout(.2))
+    seq.add(BatchNormalization(mode=2))
+
+    kern_size = 3
+    seq.add(Convolution3D(15, kern_size, kern_size, kern_size,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
+    seq.add(Dropout(.2))
     seq.add(BatchNormalization(mode=2))
 
     # dense layers
     seq.add(Flatten())
     seq.add(Dense(dense_n, activation='relu'))
-    # seq.add(Dropout(.1))
+    seq.add(Dropout(.2))
     seq.add(BatchNormalization(mode=2))
     return seq
 
 
 # train model given x_train and y_train
 def train_model(x_tr, y_tr, conv_f_n, dense_n):
-    save_name = 'shape_match_model_endo.h5'
-    tr_epoch = 10
+    save_name = 'shape_match_model_endo_k3_new.h5'
+    tr_epoch = 20
 
     input_dim = x_tr.shape[2:]
     input_a = Input(shape=input_dim)
@@ -122,11 +136,25 @@ def do_cross_val():
                 print()
 
 
+# visualize images and filters - post running
+def visualize():
+    n_i = np.random.randint(0, x_train.shape[0])
+    n_z = np.random.randint(0, 11)
+    a = x_train[n_i, 0, 0, :, :, n_z]
+    b = x_train[n_i, 0, 1, :, :, n_z]
+
+    plt.figure(1)
+    plt.imshow(a, interpolation='none', cmap='gray')
+
+    plt.figure(2)
+    plt.imshow(b, interpolation='none', cmap='gray')
+    plt.show()
+
 # run this to get the final model
 # def train_final_model():
 conv_n = 15
 dense_n = 50
-tr_id = [1, 3, 4, 5]
+tr_id = [1, 2, 3, 4, 5]  # too large with all of them
 test_id = 2
 x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_id, test_id)
 model = train_model(x_train, y_train, conv_n, dense_n)

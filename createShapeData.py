@@ -100,15 +100,27 @@ def get_int_paired_format(src, data_name):
     x_non_match_a = shape_data.get('X_non_match_a').astype('float32')
     x_non_match_b = shape_data.get('X_non_match_b').astype('float32')
 
-    x_match_a = x_match_a.reshape([x_match_a.shape[0], 1, 1, x_match_a.shape[1], x_match_a.shape[2], x_match_a.shape[3]])
-    x_match_b = x_match_b.reshape([x_match_b.shape[0], 1, 1, x_match_b.shape[1], x_match_b.shape[2], x_match_b.shape[3]])
+    match_dim = x_match_a.shape
+    if match_dim[1] != 1:
+        x_match_a = x_match_a.reshape([match_dim[0], 1, 1, match_dim[1], match_dim[2], match_dim[3]])
+        x_match_b = x_match_b.reshape([match_dim[0], 1, 1, match_dim[1], match_dim[2], match_dim[3]])
+    else:
+        x_match_a = x_match_a.reshape([match_dim[0], 1, match_dim[1], match_dim[2], match_dim[3], match_dim[4]])
+        x_match_b = x_match_b.reshape([match_dim[0], 1, match_dim[1], match_dim[2], match_dim[3], match_dim[4]])
+
     x_match = np.concatenate([x_match_a, x_match_b], axis=1)
     y_match = np.ones([x_match.shape[0], 1])
 
-    x_non_match_a = x_non_match_a.reshape([x_non_match_a.shape[0], 1, 1, x_non_match_a.shape[1], x_non_match_a.shape[2],
-                                           x_non_match_a.shape[3]])
-    x_non_match_b = x_non_match_b.reshape([x_non_match_b.shape[0], 1, 1, x_non_match_b.shape[1], x_non_match_b.shape[2],
-                                           x_non_match_b.shape[3]])
+    non_match_dim = x_non_match_a.shape
+    if non_match_dim[1] != 1:
+        x_non_match_a = x_non_match_a.reshape([non_match_dim[0], 1, 1, non_match_dim[1], non_match_dim[2], non_match_dim[3]])
+        x_non_match_b = x_non_match_b.reshape([non_match_dim[0], 1, 1, non_match_dim[1], non_match_dim[2], non_match_dim[3]])
+    else:
+        x_non_match_a = x_non_match_a.reshape([non_match_dim[0], 1, non_match_dim[1], non_match_dim[2], non_match_dim[3],
+                                               non_match_dim[4]])
+        x_non_match_b = x_non_match_b.reshape([non_match_dim[0], 1, non_match_dim[1], non_match_dim[2], non_match_dim[3],
+                                               non_match_dim[4]])
+
     x_non_match = np.concatenate([x_non_match_a, x_non_match_b], axis=1)
     y_non_match = np.zeros([x_non_match.shape[0], 1])
 
@@ -117,6 +129,68 @@ def get_int_paired_format(src, data_name):
 
     if x_out.max() > 1:
         x_out /= 255
+
+    return x_out, y_out
+
+
+# this is used for unsupervised learning
+def get_only_patches(src, data_name):
+    # total length of data should be 2* (24,000 + 46,000) = 140,000
+
+    print('loading... ' + data_name)
+    shape_data = loadmat(src + data_name)
+    x_patch = shape_data.get('X_patch').astype('float32')
+
+    if x_patch.max() > 1:
+        x_patch /= 255
+
+    return x_patch
+
+
+# this is used for semi-supervised learning, where the symantic segmentation labels are also available
+def get_patches_and_symantic_labels(src, data_name):
+    # total length of data should be 2* (24,000 + 46,000) = 140,000
+
+    print('loading... ' + data_name)
+    shape_data = loadmat(src + data_name)
+    x_patch = shape_data.get('X_patch').astype('float32')
+    y_patch = shape_data.get('Y_patch').astype('float32')
+
+    if x_patch.max() > 1:
+        x_patch /= 255
+
+    return x_patch, y_patch
+
+
+def get_shctxt_paired_format(src, data_name):
+    shape_data = loadmat(src + data_name)
+    x_match_a = shape_data.get('X_shp_match_a').astype('float32')
+    x_match_b = shape_data.get('X_shp_match_b').astype('float32')
+    x_non_match_a = shape_data.get('X_shp_non_match_a').astype('float32')
+    x_non_match_b = shape_data.get('X_shp_non_match_b').astype('float32')
+
+    match_dim = x_match_a.shape
+    x_match_a = x_match_a.reshape([match_dim[0], 1, match_dim[1]])
+    x_match_b = x_match_b.reshape([match_dim[0], 1, match_dim[1]])
+
+    # this concat allows the siamese pairs to be accessed as x[0] and x[1]
+    x_match = np.concatenate([x_match_a, x_match_b], axis=1)
+    y_match = np.ones([x_match.shape[0], 1])
+
+    non_match_dim = x_non_match_a.shape
+    x_non_match_a = x_non_match_a.reshape([non_match_dim[0], 1, non_match_dim[1]])
+    x_non_match_b = x_non_match_b.reshape([non_match_dim[0], 1, non_match_dim[1]])
+
+    x_non_match = np.concatenate([x_non_match_a, x_non_match_b], axis=1)
+    y_non_match = np.zeros([x_non_match.shape[0], 1])
+
+    x_out = np.concatenate([x_match, x_non_match]).astype('float32')
+    y_out = np.concatenate([y_match, y_non_match]).astype('float32')
+
+    if x_out.max() > 1:
+        x_out /= x_out.max()
+
+    x_out[np.isnan(x_out)] = 0
 
     return x_out, y_out
 
@@ -146,6 +220,6 @@ def get_int_paired_format_flattened(src, data_name):
     y_out = np.concatenate([y_match, y_non_match]).astype('float32')
 
     if x_out.max() > 1:
-        x_out /= 255
+        x_out /= x_out.max()
 
     return x_out, y_out

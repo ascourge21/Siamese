@@ -1,4 +1,5 @@
-"""
+"""            fclose(fid2);
+
     Here the saved model shall be loaded and fit to matlab data - EPI
 """
 
@@ -13,6 +14,7 @@ from scipy.io import loadmat, savemat
 
 # the best model is always saved in the nn_matching_models folder
 MODEL_NAME = 'shape_match_model_epi.h5'
+# MODEL_NAME = 'shape_match_model_epi_simple.h5'
 
 src = sys.argv[1]
 # src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/shortest_paths/shortest_paths_3d/nbor_shp_data/'
@@ -34,7 +36,7 @@ if os.path.isfile(src + 'patch_pairs_' + rand_idf + '_1.h5'):
             DIM = hf.get('DIM')
             DIM = np.array(DIM).astype('int')
             DIM = DIM[:, 0]
-            DIM = np.concatenate([DIM[0:2], [1], DIM[2:]])
+            # DIM = np.concatenate([DIM[0:2], [1], DIM[2:]])
 
         with h5py.File(patch_data_file, 'r') as hf:
             data = hf.get('patch_pairs')

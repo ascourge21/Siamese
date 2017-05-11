@@ -11,7 +11,7 @@ import numpy as np
 from keras.models import load_model
 from scipy.io import savemat
 
-MODEL_NAME = '/home/nripesh/PycharmProjects/Siamese/real_data/dsea_match_model_with_aug_k3.h5'
+MODEL_NAME = '/home/nripesh/PycharmProjects/Siamese/real_data/dsea_trf_and_augm_match_model_k3.h5'
 
 src = sys.argv[1]
 # src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/shortest_paths/shortest_paths_3d/nbor_shp_data/'

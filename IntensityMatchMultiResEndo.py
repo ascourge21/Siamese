@@ -177,7 +177,7 @@ def do_cross_val(data_src, data_name_lg, data_name_sm, model_save_name):
 def train_final_model(data_src, data_name_lg, data_name_sm, model_save_name):
     conv_n = 15
     dense_n = 50
-    tr_id = [1, 2, 3, 4, 5]
+    tr_id = [1]
     test_id = 1
     x_tr_sm, x_test_sm, y_train, y_test, x_tr_lg, x_test_lg = \
         create_loo_train_test_set(data_src, data_name_sm, data_name_lg, tr_id, test_id)
@@ -186,9 +186,10 @@ def train_final_model(data_src, data_name_lg, data_name_sm, model_save_name):
 
 
 # load data
-src = '/home/nripesh/Dropbox/temp_images/run_on_allens/'
-data_name_3d = 'x_data_intensity_endo_large_'
-data_name_flat = 'x_data_intensity_endo_small_'
+# src = '/home/nripesh/Dropbox/temp_images/run_on_allens/'
+src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
+data_name_3d = 'x_data_intensity_endo_'
+data_name_flat = 'x_data_intensity_endo_'
 save_name = 'shape_match_model_endo_multi_res.h5'
 
 do_cross_val(src, data_name_3d, data_name_flat, save_name)

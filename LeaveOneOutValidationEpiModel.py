@@ -21,31 +21,65 @@ def create_cnn_network(input_dim, no_conv_filt, dense_n):
     '''Base network to be shared (eq. to feature extraction).
     '''
     seq = Sequential()
-    kern_size = 3
 
     # conv layers
-    seq.add(Convolution3D(no_conv_filt, kern_size, kern_size, kern_size, input_shape=input_dim, subsample=(2, 2, 2),
+    kern_size = 3
+    seq.add(Convolution3D(5, kern_size, kern_size, kern_size, input_shape=input_dim,
                           border_mode='valid', dim_ordering='th', activation='relu'))
-    seq.add(Dropout(.1))
+    seq.add(Dropout(.2))
+    seq.add(BatchNormalization(mode=2))
+
+    kern_size = 3
+    seq.add(Convolution3D(10, kern_size, kern_size, kern_size,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
+    seq.add(Dropout(.2))
+    seq.add(BatchNormalization(mode=2))
+
+    kern_size = 3
+    seq.add(Convolution3D(15, kern_size, kern_size, kern_size,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
+    seq.add(Dropout(.2))
     seq.add(BatchNormalization(mode=2))
 
     # dense layers
     seq.add(Flatten())
     seq.add(Dense(dense_n, activation='relu'))
-    # seq.add(Dropout(.1))
+    seq.add(Dropout(.2))
+    seq.add(BatchNormalization(mode=2))
+    return seq
+
+
+# a CNN layer for intensity inputs
+def create_simple_network(input_dim, no_conv_filt, dense_n):
+    '''Base network to be shared (eq. to feature extraction).
+    '''
+    seq = Sequential()
+    kern_size = 3
+
+    # conv layers
+    seq.add(Convolution3D(15, kern_size, kern_size, kern_size, input_shape=input_dim,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
+    seq.add(Dropout(.2))
+    seq.add(BatchNormalization(mode=2))
+
+    # dense layers
+    seq.add(Flatten())
+    seq.add(Dense(100, activation='relu'))
+    seq.add(Dropout(.2))
     seq.add(BatchNormalization(mode=2))
     return seq
 
 
 # train model given x_train and y_train
 def train_model(x_tr, y_tr, conv_f_n, dense_n):
-    save_name = 'shape_match_model_epi.h5'
-    tr_epoch = 10
+    save_name = 'shape_match_model_epi_k3.h5'
+    tr_epoch = 20
 
     input_dim = x_tr.shape[2:]
     input_a = Input(shape=input_dim)
     input_b = Input(shape=input_dim)
-    base_network = create_cnn_network(input_dim, conv_f_n, dense_n)
+    # base_network = create_cnn_network(input_dim, conv_f_n, dense_n)
+    base_network = create_simple_network(input_dim, conv_f_n, dense_n)
     processed_a = base_network(input_a)
     processed_b = base_network(input_b)
 
@@ -125,8 +159,8 @@ def do_cross_val():
 # run this to get the final model
 # def train_final_model():
 conv_n = 15
-dense_n = 100
-tr_id = [1, 3, 4, 5]
+dense_n = 50
+tr_id = [1, 2, 3, 4, 5]
 test_id = 2
 x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_id, test_id)
 model = train_model(x_train, y_train, conv_n, dense_n)

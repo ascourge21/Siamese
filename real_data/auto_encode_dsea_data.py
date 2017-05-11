@@ -7,6 +7,8 @@
 
     - First try simple 1 or 2 dense layer model - baseline
     - Then try convolution + deeper models
+
+    - for canine data
 """
 
 
@@ -22,8 +24,6 @@ from keras.callbacks import EarlyStopping
 import matplotlib
 matplotlib.use('qt4agg')
 from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
-from sklearn.cross_validation import train_test_split
 
 import createShapeData
 from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
@@ -31,21 +31,18 @@ from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclid
 
 
 # create groups of 4 image sets as training and 1 as test
-def create_loo_train_test_set(src, data_stem, train_ids, test_id):
+def create_train_test_set(src, data_stem, train_ids, test_id):
     x_tr = []
-    y_tr = []
     for tid in train_ids:
         train_name = data_stem + str(tid)
-        x_train, y_train = createShapeData.get_int_paired_format(src, train_name)
+        x_train = createShapeData.get_only_patches(src, train_name)
         x_tr.append(x_train)
-        y_tr.append(y_train)
 
     x_tr_all = np.concatenate(x_tr)
-    y_tr_all = np.concatenate(y_tr)
 
     test_name = data_stem + str(test_id)
-    x_test, y_test = createShapeData.get_int_paired_format(src, test_name)
-    return x_tr_all, x_test, y_tr_all, y_test
+    x_test = createShapeData.get_only_patches(src, test_name)
+    return x_tr_all, x_test
 
 
 def visualize_results(input_im, pred_im):
@@ -111,17 +108,15 @@ def visualize_results(input_im, pred_im):
 
     plt.show()
 
-src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
-data_stem = 'x_data_intensity_comb_'
+src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/' \
+      'dsea_data_based_train_patches/'
+data_stem = 'dsea_data_patches_'
 
-tr_id = [1, 3, 4, 5]
-test_id = 2
+tr_id = [74, 75, 19, 7, 61, 64, 44]
+test_id = 4
 
 # get paired dataset and remove the pairing
-x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_id, test_id)
-
-x_train = np.concatenate((x_train[:, 0], x_train[:, 1]))
-x_test = np.concatenate((x_test[:, 0], x_test[:, 1]))
+x_train, x_test = create_train_test_set(src, data_stem, tr_id, test_id)
 
 # randinds = np.random.randint(0, x_train.shape[0], x_train.shape[0])
 off = 1
@@ -131,15 +126,15 @@ x_test = x_test[:, :, off:, off:, off:]
 
 input_dim = x_train.shape[1:]
 
-# encoding layer
-conv_channel_1 = 5
-conv_channel_2 = 15
+#################################################################################
+conv_channel_1 = 10
+conv_channel_2 = 4
 # conv_channel_3 = 5
 kern_size = 3
+DROP_PCT = .2
 
+# encoding layer
 input_patches = Input(shape=input_dim)
-
-################################### ENCODER/DECODER ###################################
 x = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, input_shape=input_dim,
                   activation='relu', dim_ordering='th', border_mode='same')(input_patches)
 x = MaxPooling3D((2, 2, 2), dim_ordering='th')(x)
@@ -147,6 +142,7 @@ x = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size,
                   activation='relu', dim_ordering='th', border_mode='same')(x)
 encoded = MaxPooling3D((2, 2, 2), dim_ordering='th')(x)
 
+# encoding layer
 x = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
                   border_mode='same')(encoded)
 x = UpSampling3D(size=(2, 2, 2), dim_ordering='th')(x)
@@ -156,20 +152,22 @@ x = UpSampling3D(size=(2, 2, 2), dim_ordering='th')(x)
 decoded = Convolution3D(1, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
                         border_mode='same')(x)
 encoder = Model(input=input_patches, output=encoded)
-#########################################################################################
+
 
 # compile and fit model
 decoder = Model(input_patches, decoded)
-decoder.compile(optimizer='adadelta', loss='mean_absolute_error') # think about advanced losses later - like
+decoder.compile(optimizer='adadelta', loss='binary_crossentropy')
 decoder.fit(x_train, x_train,
             nb_epoch=20,
             batch_size=128,
             shuffle=True,
             verbose=2,
-            validation_data=(x_test, x_test),
-            callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+            validation_split=.3,
+            callbacks=[EarlyStopping(monitor='val_loss', patience=3)])
 
-encode_name = '/home/nripesh/PycharmProjects/Siamese/using_unsupervised/leuven_int_encoder.h5'
+#################################################################################
+
+encode_name = '/home/nripesh/PycharmProjects/Siamese/real_data/dsea_encoder.h5'
 encoder.save(encode_name)
 
 ex_1 = x_test[np.random.randint(0, x_test.shape[0]), :]

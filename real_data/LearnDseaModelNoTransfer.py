@@ -1,7 +1,7 @@
 import numpy as np
 from keras.optimizers import SGD, RMSprop
 from keras.layers.core import Lambda
-from keras.layers import Input, Dense, Dropout, Convolution3D, MaxPooling3D, Flatten
+from keras.layers import Input, Dense, Dropout, Convolution3D, AveragePooling3D, Flatten, BatchNormalization
 from keras.regularizers import WeightRegularizer, l2
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping
@@ -20,27 +20,32 @@ def create_cnn_network(input_dim):
     '''Base network to be shared (eq. to feature extraction).
     '''
     seq = Sequential()
-    nb_filter = [12, 6]
-    kern_size = 3
 
     # conv layers
-    seq.add(Convolution3D(nb_filter[0], kern_size, kern_size, kern_size, input_shape=input_dim,
+    kern_size = 3
+    seq.add(Convolution3D(5, kern_size, kern_size, kern_size, input_shape=input_dim,
                           border_mode='valid', dim_ordering='th', activation='relu'))
-    # seq.add(MaxPooling3D(pool_size=(2, 2, 2)))  # downsample
-    seq.add(Dropout(.1))
+    seq.add(Dropout(.25))
+    seq.add(BatchNormalization(mode=2))
+
+    kern_size = 3
+    seq.add(Convolution3D(15, kern_size, kern_size, kern_size,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
+    seq.add(Dropout(.25))
+    seq.add(BatchNormalization(mode=2))
 
     # dense layers
     seq.add(Flatten())
-    seq.add(Dense(100, activation='relu'))
-    seq.add(Dropout(0.1))
     seq.add(Dense(50, activation='relu'))
+    seq.add(Dropout(.25))
+    seq.add(BatchNormalization(mode=2))
     return seq
 
 # load data
 src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/' \
       'dsea_data_based_train_patches/'
-data_name = 'dsea_data_patch_pairs_size_7'
-save_name = 'dsea_match_model.h5'
+data_name = 'dsea_data_patch_pairs_augm_size_9'
+save_name = '/home/nripesh/PycharmProjects/Siamese/real_data/dsea_match_model_with_aug_k3.h5'
 
 x, y = createShapeData.get_int_paired_format(src, data_name)
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.25)
@@ -66,7 +71,7 @@ nb_epoch = 15
 opt_func = RMSprop()
 model.compile(loss=contrastive_loss, optimizer=opt_func)
 model.fit([x_train[:, 0], x_train[:, 1]], y_train, validation_split=.25,
-          batch_size=32, verbose=2, nb_epoch=nb_epoch, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+          batch_size=128, verbose=2, nb_epoch=nb_epoch, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
 model.save(save_name)
 
 # compute final accuracy on training and test sets
@@ -105,3 +110,4 @@ plt.hold(True)
 plt.plot(np.ones(pred_ts.shape)*thresh, 'r')
 plt.hold(False)
 plt.savefig('pair_errors_dsea.png')
+print(", auc: " + str(roc_auc) + "\n")
