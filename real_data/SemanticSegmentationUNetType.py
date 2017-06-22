@@ -12,7 +12,7 @@ import numpy as np
 from keras.optimizers import SGD, RMSprop
 from keras.layers.core import Lambda
 from keras.layers import Input, Dense, Dropout, Convolution3D, \
-    MaxPooling3D, Flatten, BatchNormalization, UpSampling3D
+    MaxPooling3D, Flatten, BatchNormalization, UpSampling3D, Merge
 from keras.regularizers import WeightRegularizer, l2
 from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping
@@ -141,11 +141,13 @@ def visualize_results(input_im, input_label, pred_im):
 
     plt.show()
 
-src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
-data_stem = 'leuven_labeled_semantic_patches_'
+src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/' \
+      'dsea_data_based_train_patches/'
+data_stem = 'dsea_labeled_semantic_patches_'
 
-tr_id = [25, 26, 28, 29]
-test_id = 27
+tr_id = [19, 22, 23, 61, 65, 74, 75]
+test_id = 71
+N_epoch = 40
 
 # get paired dataset and remove the pairing
 x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_id, test_id)
@@ -165,38 +167,40 @@ conv_channel_1 = 5
 conv_channel_2 = 15
 kern_size = 3
 
+############################ encoder - semantic decoder ##########################
 input_patches = Input(shape=input_dim)
+x0 = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, input_shape=input_dim,
+                   activation='relu', dim_ordering='th', border_mode='same')(input_patches)
+x1 = MaxPooling3D((2, 2, 2), dim_ordering='th')(x0)
+x2 = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size,
+                   activation='relu', dim_ordering='th', border_mode='same')(x1)
+encoded = MaxPooling3D((2, 2, 2), dim_ordering='th')(x2)
 
-x = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, input_shape=input_dim,
-                  activation='relu', dim_ordering='th', border_mode='same')(input_patches)
-x = MaxPooling3D((2, 2, 2), dim_ordering='th')(x)
-x = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size,
-                  activation='relu', dim_ordering='th', border_mode='same')(x)
-encoded = MaxPooling3D((2, 2, 2), dim_ordering='th')(x)
-
-x = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
-                  border_mode='same')(encoded)
-x = UpSampling3D(size=(2, 2, 2), dim_ordering='th')(x)
-x = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
-                  border_mode='same')(x)
-x = UpSampling3D(size=(2, 2, 2), dim_ordering='th')(x)
+x3 = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
+                   border_mode='same')(encoded)
+x4 = UpSampling3D(size=(2, 2, 2), dim_ordering='th')(x3)
+x4 = Merge(mode='sum')([x4, x2])
+x5 = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
+                   border_mode='same')(x4)
+x6 = UpSampling3D(size=(2, 2, 2), dim_ordering='th')(x5)
+x4 = Merge(mode='sum')([x6, x0])
 decoded = Convolution3D(1, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
-                        border_mode='same')(x)
+                        border_mode='same')(x6)
 encoder = Model(input=input_patches, output=encoded)
-
+####################################################################################
 
 # compile and fit model
 decoder = Model(input_patches, decoded)
 decoder.compile(optimizer='adadelta', loss='mean_absolute_error')
 decoder.fit(x_train, y_train,
-            nb_epoch=20,
+            nb_epoch=N_epoch,
             batch_size=128,
             shuffle=True,
             verbose=2,
             validation_split=.25,
-            callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+            callbacks=[EarlyStopping(monitor='val_loss', patience=3)])
 
-encode_name = '/home/nripesh/PycharmProjects/Siamese/using_unsupervised/leuven_semi_sup_encoder.h5'
+encode_name = '/home/nripesh/PycharmProjects/Siamese/real_data/dsea_semantic_unet_encoder.h5'
 encoder.save(encode_name)
 
 rand_int1 = np.random.randint(0, x_test.shape[0])
@@ -207,10 +211,10 @@ ex_1_pred = decoder.predict(ex_1)
 visualize_results(ex_1, ex_1_label, ex_1_pred)
 
 
-# if encoded available, check it out
+# # if encoded available, check it out
 # if encoded_and_decoded:
 #     ex_1 = x_test[np.random.randint(0, x_test.shape[0]), :]
 #     ex_1 = np.reshape(ex_1, (1, ex_1.shape[0], ex_1.shape[1], ex_1.shape[2], ex_1.shape[3]))
 #     encoded_imgs = encoder.predict(ex_1)
-#     # encoder.save(encode_name)
+#     encoder.save(encode_name)
 

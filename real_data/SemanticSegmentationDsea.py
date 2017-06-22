@@ -147,7 +147,7 @@ data_stem = 'dsea_labeled_semantic_patches_'
 
 tr_id = [19, 22, 23, 61, 65, 74, 75]
 test_id = 71
-N_epoch = 5
+N_epoch = 40
 
 # get paired dataset and remove the pairing
 x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_id, test_id)
@@ -216,9 +216,9 @@ decoder.fit(x_train, y_train,
             shuffle=True,
             verbose=2,
             validation_split=.25,
-            callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+            callbacks=[EarlyStopping(monitor='val_loss', patience=3)])
 
-encode_name = '/home/nripesh/PycharmProjects/Siamese/real/dsea_semantic_encoder.h5'
+encode_name = '/home/nripesh/PycharmProjects/Siamese/real_data/dsea_semantic_encoder.h5'
 encoder.save(encode_name)
 
 rand_int1 = np.random.randint(0, x_test.shape[0])
@@ -229,10 +229,10 @@ ex_1_pred = decoder.predict(ex_1)
 visualize_results(ex_1, ex_1_label, ex_1_pred)
 
 
-# if encoded available, check it out
-if encoded_and_decoded:
-    ex_1 = x_test[np.random.randint(0, x_test.shape[0]), :]
-    ex_1 = np.reshape(ex_1, (1, ex_1.shape[0], ex_1.shape[1], ex_1.shape[2], ex_1.shape[3]))
-    encoded_imgs = encoder.predict(ex_1)
-    # encoder.save(encode_name)
+# # if encoded available, check it out
+# if encoded_and_decoded:
+#     ex_1 = x_test[np.random.randint(0, x_test.shape[0]), :]
+#     ex_1 = np.reshape(ex_1, (1, ex_1.shape[0], ex_1.shape[1], ex_1.shape[2], ex_1.shape[3]))
+#     encoded_imgs = encoder.predict(ex_1)
+#     encoder.save(encode_name)
 

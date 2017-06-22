@@ -16,7 +16,8 @@ from keras.models import load_model
 from scipy.io import loadmat, savemat
 
 # the best model is always saved in the nn_matching_models folder
-MODEL_NAME = '/home/nripesh/PycharmProjects/Siamese/real_data/dsea_encoder.h5'
+# MODEL_NAME = '/home/nripesh/PycharmProjects/Siamese/real_data/dsea_encoder.h5'
+MODEL_NAME = '/home/nripesh/PycharmProjects/Siamese/real_data/dsea_semantic_encoder.h5'
 
 # extract command line inputs
 src = sys.argv[1]
