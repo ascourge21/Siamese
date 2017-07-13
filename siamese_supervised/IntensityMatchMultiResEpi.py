@@ -4,20 +4,16 @@
     EPI
 """
 import numpy as np
-from keras.optimizers import SGD, RMSprop
-from keras.layers.core import Lambda
-from keras.layers import Input, Dense, Dropout, Convolution3D, MaxPooling3D, Flatten, merge, BatchNormalization
-from keras.regularizers import WeightRegularizer, l2
-from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping
+from keras.layers import Input, Dense, Dropout, Convolution3D, Flatten, merge, BatchNormalization
+from keras.layers.core import Lambda
+from keras.models import Model, Sequential
+from keras.optimizers import RMSprop
+from sklearn.metrics import roc_curve, auc
 
-from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
-from sklearn.cross_validation import train_test_split
-
-import createShapeData
-from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
+from face_siamese.SiameseFunctions import eucl_dist_output_shape, euclidean_distance, \
     contrastive_loss
+from siamese_supervised import createShapeData
 
 
 # a CNN layer for intensity inputs
@@ -107,10 +103,12 @@ def run_test(model, x_test_3d, x_test_f, y_ts, tr_ids, ts_n, conv_n, dense_n):
     tpr, fpr, _ = roc_curve(y_ts, pred_ts)
     roc_auc = auc(fpr, tpr)
     target = open('auc_scores_summary_multi_epi.txt', 'a')
-    target.write("epi, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + ", auc: " +
+    target.write("epi, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " + str(conv_n) +
+                 ", dense n: " + str(dense_n) + ", auc: " +
                  str(roc_auc) + "\n")
     target.close()
-    print("epi, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + ", auc: " +
+    print("epi, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " + str(conv_n) +
+          ", dense n: " + str(dense_n) + ", auc: " +
                  str(roc_auc) + "\n")
 
 

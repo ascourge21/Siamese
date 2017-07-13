@@ -1,23 +1,19 @@
 """
     this provides code to do cross validation on the conv/dense size and run the final model
     Multi-res (one has conv, smaller one has no conv)
-    EPI
+    ENDO
 """
 import numpy as np
-from keras.optimizers import SGD, RMSprop
-from keras.layers.core import Lambda
-from keras.layers import Input, Dense, Dropout, Convolution3D, MaxPooling3D, Flatten, merge, BatchNormalization
-from keras.regularizers import WeightRegularizer, l2
-from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping
+from keras.layers import Input, Dense, Dropout, Convolution3D, Flatten, merge, BatchNormalization
+from keras.layers.core import Lambda
+from keras.models import Model, Sequential
+from keras.optimizers import RMSprop
+from sklearn.metrics import roc_curve, auc
 
-from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
-from sklearn.cross_validation import train_test_split
-
-import createShapeData
-from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
+from face_siamese.SiameseFunctions import eucl_dist_output_shape, euclidean_distance, \
     contrastive_loss
+from siamese_supervised import createShapeData
 
 
 # a CNN layer for intensity inputs
@@ -65,7 +61,7 @@ def create_cnn_network_small(input_dim, no_conv_filt, dense_n):
 
 # train model given x_train and y_train
 def train_model(x_tr_lg, y_train, x_tr_sm, conv_n, dense_n, save_name):
-    nb_epoch = 5
+    nb_epoch = 10
 
     # will be shared across the two branches
     input_dim = x_tr_lg.shape[2:]
@@ -78,7 +74,7 @@ def train_model(x_tr_lg, y_train, x_tr_sm, conv_n, dense_n, save_name):
 
     # the layer that takes larger patches - fix these for now and cval for the other stream
     conv_n_large = 15
-    dense_n_large = 100
+    dense_n_large = 50
     cnn_network = create_cnn_network(input_dim, conv_n_large, dense_n_large)
     processed_a = cnn_network(input_a)
     processed_b = cnn_network(input_b)
@@ -115,11 +111,11 @@ def run_test(model, x_test_3d, x_test_f, y_ts, tr_ids, ts_n, conv_n, dense_n):
     # get auc scores
     tpr, fpr, _ = roc_curve(y_ts, pred_ts)
     roc_auc = auc(fpr, tpr)
-    target = open('auc_scores_summary_multi_epi.txt', 'a')
-    target.write("epi, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + ", auc: " +
+    target = open('auc_scores_summary_multi_endo.txt', 'a')
+    target.write("endo, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + ", auc: " +
                  str(roc_auc) + "\n")
     target.close()
-    print("epi, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + ", auc: " +
+    print("endo, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + ", auc: " +
                  str(roc_auc) + "\n")
 
 
@@ -165,8 +161,8 @@ def do_cross_val(data_src, data_name_lg, data_name_sm, model_save_name):
     # data_name_sm = data_name_small
     # model_save_name = save_name
 
-    conv_n_vals = [5, 10, 15]
-    dense_n_vals = [25, 50, 100]
+    conv_n_vals = [10]
+    dense_n_vals = [50, 100]
     avail_ids = [1, 2, 3, 4, 5]
     for conv_n in conv_n_vals:
         for dense_n in dense_n_vals:
@@ -187,7 +183,7 @@ def do_cross_val(data_src, data_name_lg, data_name_sm, model_save_name):
 
 # run this to get the final model
 def train_final_model(data_src, data_name_lg, data_name_sm, model_save_name):
-    conv_n = 15
+    conv_n = 10
     dense_n = 50
     tr_id = [1, 2, 3, 4, 5]
     test_id = 2
@@ -195,15 +191,15 @@ def train_final_model(data_src, data_name_lg, data_name_sm, model_save_name):
         create_loo_train_test_set(data_src, data_name_sm, data_name_lg, tr_id, test_id)
     model = train_model(x_tr_lg, y_train, x_tr_sm, conv_n, dense_n, model_save_name)
     run_test(model, x_test_lg, x_test_sm, y_test, tr_id, test_id, conv_n, dense_n)
-    print("epi, trained on: " + str(tr_id) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + "\n")
+    print("endo, trained on: " + str(tr_id) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + "\n")
 
 
 # load data
 # src = '/home/nripesh/Dropbox/temp_images/run_on_allens/'
 src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
-data_name_large = 'x_data_intensity_epi_large_'
-data_name_small = 'x_data_intensity_epi_small_'
-save_name = 'shape_match_model_epi_multi_res2.h5'
+data_name_large = 'x_data_intensity_endo_large_'
+data_name_small = 'x_data_intensity_endo_small_'
+save_name = 'shape_match_model_endo_multi_res2.h5'
 
 # do_cross_val(src, data_name_large, data_name_small, save_name)
 train_final_model(src, data_name_large, data_name_small, save_name)

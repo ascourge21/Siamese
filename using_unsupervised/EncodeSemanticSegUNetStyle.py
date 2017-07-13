@@ -6,27 +6,17 @@
         we'll reconstruct the segmentation.
 """
 
-
-
-import numpy as np
-from keras.optimizers import SGD, RMSprop
-from keras.layers.core import Lambda
-from keras.layers import Input, Dense, Dropout, Convolution3D, \
-    MaxPooling3D, Flatten, BatchNormalization, UpSampling3D, Merge
-from keras.regularizers import WeightRegularizer, l2
-from keras.models import Model, Sequential
-from keras.callbacks import EarlyStopping
-from keras import initializations
-
 import matplotlib
+import numpy as np
+from keras.callbacks import EarlyStopping
+from keras.layers import Input, Convolution3D, \
+    MaxPooling3D, UpSampling3D, Merge
+from keras.models import Model
+
 matplotlib.use('qt4agg')
 from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
-from sklearn.cross_validation import train_test_split
 
-import createShapeData
-from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
-    contrastive_loss
+from siamese_supervised import createShapeData
 
 
 # create groups of 4 image sets as training and 1 as test
@@ -201,7 +191,7 @@ decoder.fit(x_train, y_train,
             validation_split=.25,
             callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
 
-encode_name = '/home/nripesh/PycharmProjects/Siamese/using_unsupervised/leuven_semi_sup_encoder.h5'
+encode_name = '/home/nripesh/PycharmProjects/Siamese/using_unsupervised/leuven_unet_encoder.h5'
 encoder.save(encode_name)
 
 rand_int1 = np.random.randint(0, x_test.shape[0])

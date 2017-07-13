@@ -11,23 +11,17 @@
     - for canine data
 """
 
-
-import numpy as np
-from keras.optimizers import SGD, RMSprop
-from keras.layers.core import Lambda
-from keras.layers import Input, Dense, Dropout, Convolution3D, \
-    MaxPooling3D, Flatten, BatchNormalization, UpSampling3D
-from keras.regularizers import WeightRegularizer, l2
-from keras.models import Model, Sequential
-from keras.callbacks import EarlyStopping
-
 import matplotlib
+import numpy as np
+from keras.callbacks import EarlyStopping
+from keras.layers import Input, Convolution3D, \
+    MaxPooling3D, UpSampling3D
+from keras.models import Model
+
 matplotlib.use('qt4agg')
 from matplotlib import pyplot as plt
 
-import createShapeData
-from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
-    contrastive_loss
+from siamese_supervised import createShapeData
 
 
 # create groups of 4 image sets as training and 1 as test

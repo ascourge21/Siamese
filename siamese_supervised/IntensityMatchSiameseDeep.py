@@ -1,18 +1,16 @@
 import numpy as np
-from keras.optimizers import SGD, RMSprop
-from keras.layers.core import Lambda
-from keras.layers import Input, Dense, Dropout, Convolution3D, MaxPooling3D, Flatten
-from keras.regularizers import WeightRegularizer, l2
-from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping
-
+from keras.layers import Input, Dense, Dropout, Convolution3D, Flatten
+from keras.layers.core import Lambda
+from keras.models import Model, Sequential
+from keras.optimizers import RMSprop
 from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
 from sklearn.cross_validation import train_test_split
+from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
 
-import createShapeData
-from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
+from face_siamese.SiameseFunctions import eucl_dist_output_shape, euclidean_distance, \
     contrastive_loss
+from siamese_supervised import createShapeData
 
 
 # a CNN layer for intensity inputs
@@ -30,21 +28,21 @@ def create_cnn_network(input_dim):
     seq.add(Dropout(.25))
 
     # conv layer 2
-    # seq.add(Convolution3D(nb_filter[1], kern_size, kern_size, kern_size, border_mode='valid', dim_ordering='th',
-    #                       activation='relu'))
-    # # seq.add(MaxPooling3D(pool_size=(2, 2, 2), dim_ordering='th'))  # downsample
-    # seq.add(Dropout(.25))
+    seq.add(Convolution3D(nb_filter[1], kern_size, kern_size, kern_size, border_mode='same', dim_ordering='th',
+                          activation='relu'))
+    # seq.add(MaxPooling3D(pool_size=(2, 2, 2), dim_ordering='th'))  # downsample
+    seq.add(Dropout(.25))
 
     # dense layers
     seq.add(Flatten())
     seq.add(Dense(100, activation='relu'))
-    seq.add(Dropout(0.2))
+    seq.add(Dropout(0.1))
     seq.add(Dense(50, activation='relu'))
     return seq
 
 # load data
 src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/matconvnet-1.0-beta21/cardiac_data/'
-data_name = 'x_data_intensity_mixed'
+data_name = 'x_data_intensity_endo'
 x, y = createShapeData.get_int_paired_format(src, data_name)
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=.25)
 
@@ -64,13 +62,13 @@ distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([proc
 model = Model(input=[input_a, input_b], output=distance)
 
 # train
-nb_epoch = 15
+nb_epoch = 20
 # opt_func = RMSprop(lr=.0005, clipnorm=1)
 opt_func = RMSprop()
 model.compile(loss=contrastive_loss, optimizer=opt_func)
 model.fit([x_train[:, 0], x_train[:, 1]], y_train, validation_split=.30,
-          batch_size=32, verbose=2, nb_epoch=nb_epoch, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
-model.save('shape_match_model_int_patch_mixed.h5')
+          batch_size=100, verbose=2, nb_epoch=nb_epoch, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+model.save('shape_match_model_int_patch_endo_deep.h5')
 
 # compute final accuracy on training and test sets
 pred_tr = model.predict([x_train[:, 0], x_train[:, 1]])
@@ -91,7 +89,7 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver operating characteristic example')
 plt.legend(loc="lower right")
 plt.hold(False)
-plt.savefig('roc_curve_mixed.png')
+plt.savefig('roc_curve_endo.png')
 
 thresh = .41
 tr_acc = accuracy_score(y_train, (pred_tr < thresh).astype('float32'))
@@ -107,4 +105,4 @@ plt.plot(np.concatenate([pred_ts[y_test == 1], pred_ts[y_test == 0]]))
 plt.hold(True)
 plt.plot(np.ones(pred_ts.shape)*thresh, 'r')
 plt.hold(False)
-plt.savefig('pair_errors_mixed.png')
+plt.savefig('pair_errors_endo.png')

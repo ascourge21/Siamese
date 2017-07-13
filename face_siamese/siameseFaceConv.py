@@ -1,18 +1,11 @@
-import numpy as np
-from keras.models import Sequential
-from keras.optimizers import SGD, RMSprop
-from keras.layers import Input, Lambda, Dense, Dropout, Convolution2D, MaxPooling2D, Flatten, Reshape
-from keras.layers import Activation
-from keras.models import Sequential, Model
-from keras.callbacks import EarlyStopping
 from keras import backend as K
-
-from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score
+from keras.layers import Activation
+from keras.layers import Input, Lambda, Dense, Dropout, Convolution2D, MaxPooling2D, Flatten
+from keras.models import Sequential, Model
+from keras.optimizers import RMSprop
 from sklearn.cross_validation import train_test_split
 
-import createFaceData
+from face_siamese import createFaceData
 
 
 def euclidean_distance(vects):

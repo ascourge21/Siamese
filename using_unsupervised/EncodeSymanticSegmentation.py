@@ -6,26 +6,17 @@
         we'll reconstruct the segmentation.
 """
 
-
-
-import numpy as np
-from keras.optimizers import SGD, RMSprop
-from keras.layers.core import Lambda
-from keras.layers import Input, Dense, Dropout, Convolution3D, \
-    MaxPooling3D, Flatten, BatchNormalization, UpSampling3D
-from keras.regularizers import WeightRegularizer, l2
-from keras.models import Model, Sequential
-from keras.callbacks import EarlyStopping
-
 import matplotlib
+import numpy as np
+from keras.callbacks import EarlyStopping
+from keras.layers import Input, Convolution3D, \
+    MaxPooling3D, UpSampling3D
+from keras.models import Model
+
 matplotlib.use('qt4agg')
 from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
-from sklearn.cross_validation import train_test_split
 
-import createShapeData
-from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
-    contrastive_loss
+from siamese_supervised import createShapeData
 
 
 # create groups of 4 image sets as training and 1 as test
@@ -144,7 +135,7 @@ def visualize_results(input_im, input_label, pred_im):
 src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
 data_stem = 'leuven_labeled_semantic_patches_'
 
-tr_id = [25, 26, 28, 29]
+tr_id = [26, 28, 29]
 test_id = 27
 
 # get paired dataset and remove the pairing
@@ -157,6 +148,13 @@ x_train = x_train[:, :, off:, off:, off:]
 x_test = x_test[:, :, off:, off:, off:]
 y_train = y_train[:, :, off:, off:, off:]
 y_test = y_test[:, :, off:, off:, off:]
+
+# keep this simple - just do 0/1
+y_train[y_train != 2] = 0
+y_test[y_test != 2] = 0
+y_train[y_train == 2] = 1
+y_test[y_test == 2] = 1
+
 
 input_dim = x_train.shape[1:]
 
@@ -189,7 +187,7 @@ encoder = Model(input=input_patches, output=encoded)
 decoder = Model(input_patches, decoded)
 decoder.compile(optimizer='adadelta', loss='mean_absolute_error')
 decoder.fit(x_train, y_train,
-            nb_epoch=20,
+            nb_epoch=10,
             batch_size=128,
             shuffle=True,
             verbose=2,

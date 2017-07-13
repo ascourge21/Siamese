@@ -1,22 +1,20 @@
 '''This script demonstrates how to build a variational autoencoder with Keras.
 Reference: "Auto-Encoding Variational Bayes" https://arxiv.org/abs/1312.6114
 '''
-import numpy as np
 import matplotlib
+import numpy as np
+
 matplotlib.use('qt4agg')
 from matplotlib import pyplot as plt
-from keras.layers import Input, Dense, Lambda
+from keras.layers import Lambda
 from keras.models import Model
 from keras import backend as K
 from keras import objectives
-from keras.datasets import mnist
 
-from keras.layers import Input, Dense, Dropout, Convolution3D, \
-    MaxPooling3D, Flatten, BatchNormalization, UpSampling3D
+from keras.layers import Input, Convolution3D, \
+    MaxPooling3D, UpSampling3D
 
-import createShapeData
-from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
-    contrastive_loss
+from siamese_supervised import createShapeData
 
 
 # create groups of 4 image sets as training and 1 as test

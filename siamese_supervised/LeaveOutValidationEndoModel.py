@@ -1,75 +1,63 @@
-"""
-    from here on, we'll not create separate endo/epi model.
-    These models will be based on good common practice from literature
-    Ex: http://www.cc.gatech.edu/~hays/compvision/proj6/
-
-    variations shall be made in maxpool vs no maxpool etc
-    batch_size shall be 64/128 - literature seems to suggest 128 is good?
-
-    - this is for 9X9X9 patches
-    - 2 convolution layers of channels - 3, 9 and conv kernel sized 3X3X3
-    - dense layer try 50 or 100?
-"""
-
-
+import matplotlib
 import numpy as np
-from keras.optimizers import SGD, RMSprop
-from keras.layers.core import Lambda
-from keras.layers import Input, Dense, Dropout, Convolution3D, \
-    MaxPooling3D, Flatten, BatchNormalization
-from keras.regularizers import WeightRegularizer, l2
-from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping
+from keras.layers import Input, Dense, Dropout, Convolution3D, \
+    Flatten, BatchNormalization
+from keras.layers.core import Lambda
+from keras.models import Model, Sequential
+from keras.optimizers import RMSprop
 
+matplotlib.use('qt4agg')
 from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
-from sklearn.cross_validation import train_test_split
+from sklearn.metrics import roc_curve, auc
 
-import createShapeData
-from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
+from siamese_supervised import createShapeData
+from face_siamese.SiameseFunctions import eucl_dist_output_shape, euclidean_distance, \
     contrastive_loss
 
 
 # a CNN layer for intensity inputs
-def cnn_block_without_maxpool(input_dim, no_conv_filt, dense_n):
+def create_cnn_network(input_dim, no_conv_filt, dense_n):
     '''Base network to be shared (eq. to feature extraction).
     '''
     seq = Sequential()
-    kern_size = 3
 
     # conv layers
-    # layer 1
-    conv_channel_1 = 5
-    seq.add(Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, input_shape=input_dim,
-                          border_mode='valid', dim_ordering='th', activation='relu', subsample=(2, 2, 2)))
-    # seq.add(Dropout(.1))
-    seq.add(BatchNormalization(mode=2))
-
-    # layer 2
-    conv_channel_2 = 15
-    seq.add(Convolution3D(conv_channel_2, kern_size, kern_size, kern_size,
+    kern_size = 3
+    seq.add(Convolution3D(5, kern_size, kern_size, kern_size, input_shape=input_dim,
                           border_mode='valid', dim_ordering='th', activation='relu'))
-    seq.add(Dropout(.1))
+    seq.add(Dropout(.2))
     seq.add(BatchNormalization(mode=2))
 
-    # dense layers - one or two?
-    seq.add(Flatten())
-    seq.add(Dense(75, activation='relu'))
+    kern_size = 3
+    seq.add(Convolution3D(10, kern_size, kern_size, kern_size,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
+    seq.add(Dropout(.2))
     seq.add(BatchNormalization(mode=2))
-    seq.add(Dense(30, activation='relu'))
+
+    kern_size = 3
+    seq.add(Convolution3D(15, kern_size, kern_size, kern_size,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
+    seq.add(Dropout(.2))
+    seq.add(BatchNormalization(mode=2))
+
+    # dense layers
+    seq.add(Flatten())
+    seq.add(Dense(dense_n, activation='relu'))
+    seq.add(Dropout(.2))
     seq.add(BatchNormalization(mode=2))
     return seq
 
 
 # train model given x_train and y_train
 def train_model(x_tr, y_tr, conv_f_n, dense_n):
-    save_name = 'shape_match_model1.h5'
-    tr_epoch = 10
+    save_name = 'shape_match_model_endo_k3_new.h5'
+    tr_epoch = 20
 
     input_dim = x_tr.shape[2:]
     input_a = Input(shape=input_dim)
     input_b = Input(shape=input_dim)
-    base_network = cnn_block_without_maxpool(input_dim, conv_f_n, dense_n)
+    base_network = create_cnn_network(input_dim, conv_f_n, dense_n)
     processed_a = base_network(input_a)
     processed_b = base_network(input_b)
 
@@ -82,8 +70,7 @@ def train_model(x_tr, y_tr, conv_f_n, dense_n):
     opt_func = RMSprop()
     model_tr.compile(loss=contrastive_loss, optimizer=opt_func)
     model_tr.fit([x_tr[:, 0], x_tr[:, 1]], y_tr, validation_split=.30,
-                 batch_size=128, verbose=2, nb_epoch=tr_epoch,
-                 callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+                 batch_size=128, verbose=2, nb_epoch=tr_epoch, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
     model_tr.save(save_name)
     return model_tr
 
@@ -96,7 +83,7 @@ def run_test(model, x_ts, y_ts, tr_ids, ts_n, conv_n, dense_n):
     # get auc scores
     tpr, fpr, _ = roc_curve(y_ts, pred_ts)
     roc_auc = auc(fpr, tpr)
-    target = open('auc_scores_summary_model1.txt', 'a')
+    target = open('auc_scores_summary_endo.txt', 'a')
     target.write("endo, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + ", auc: " +
                  str(roc_auc) + "\n")
     target.close()
@@ -125,7 +112,7 @@ def create_loo_train_test_set(src, data_stem, train_ids, test_id):
 # load 1 and 2 and test on 3
 src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
 # src = '/home/nripesh/Dropbox/temp_images/run_on_allens/'
-data_stem = 'x_data_intensity_comb_'
+data_stem = 'x_data_intensity_endo_'
 
 
 # run this to perform cross validation
@@ -147,17 +134,31 @@ def do_cross_val():
                 print()
 
 
+# visualize images and filters - post running
+def visualize():
+    n_i = np.random.randint(0, x_train.shape[0])
+    n_z = np.random.randint(0, 11)
+    a = x_train[n_i, 0, 0, :, :, n_z]
+    b = x_train[n_i, 0, 1, :, :, n_z]
+
+    plt.figure(1)
+    plt.imshow(a, interpolation='none', cmap='gray')
+
+    plt.figure(2)
+    plt.imshow(b, interpolation='none', cmap='gray')
+    plt.show()
+
 # run this to get the final model
-def train_final_model():
-    conv_n = 15
-    dense_n = 50
-    tr_id = [1, 3, 4, 5]
-    test_id = 2
-    x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_id, test_id)
-    model = train_model(x_train, y_train, conv_n, dense_n)
-    run_test(model, x_test, y_test, tr_id, test_id, conv_n, dense_n)
-    print("endo, trained on: " + str(tr_id) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + "\n")
+# def train_final_model():
+conv_n = 15
+dense_n = 50
+tr_id = [1, 2, 3, 4, 5]  # too large with all of them
+test_id = 2
+x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_id, test_id)
+model = train_model(x_train, y_train, conv_n, dense_n)
+run_test(model, x_test, y_test, tr_id, test_id, conv_n, dense_n)
+print("endo, trained on: " + str(tr_id) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + "\n")
 
 
 # do_cross_val()
-train_final_model()
+# train_final_model()

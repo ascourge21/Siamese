@@ -27,7 +27,7 @@ no_of_files = int(sys.argv[3])
 # src = '/home/nripesh/Dropbox/research_matlab/nripesh_3d/nbor_shp_data/'
 
 
-# here we'll try to do robust distance calculation
+# simple distance metric
 def dist_calc_simple(x_0, x_1):
     model_pred = np.zeros((x_0.shape[0], 1))
     for k in range(model_pred.shape[0]):

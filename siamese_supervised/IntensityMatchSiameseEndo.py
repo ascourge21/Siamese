@@ -1,19 +1,14 @@
-import numpy as np
-from keras.optimizers import SGD, RMSprop
-from keras.layers.core import Lambda
-from keras.layers import Input, Dense, Dropout, Convolution3D, \
-    MaxPooling3D, Flatten, BatchNormalization
-from keras.regularizers import WeightRegularizer, l2
-from keras.models import Model, Sequential
 from keras.callbacks import EarlyStopping
+from keras.layers import Input, Dense, Dropout, Convolution3D, \
+    Flatten, BatchNormalization
+from keras.layers.core import Lambda
+from keras.models import Model, Sequential
+from keras.optimizers import RMSprop
+from sklearn.metrics import roc_curve, auc
 
-from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score, roc_curve, auc
-from sklearn.cross_validation import train_test_split
-
-import createShapeData
-from SiameseFunctions import create_base_network, eucl_dist_output_shape, euclidean_distance, \
+from face_siamese.SiameseFunctions import eucl_dist_output_shape, euclidean_distance, \
     contrastive_loss
+from siamese_supervised import createShapeData
 
 
 # a CNN layer for intensity inputs

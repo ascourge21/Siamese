@@ -1,14 +1,14 @@
 import numpy as np
-from keras.models import Sequential
-from keras.optimizers import SGD, RMSprop
-from keras.layers.core import Dense, Dropout, Activation
-from keras.layers import Convolution2D, MaxPooling2D, Flatten
 from keras.callbacks import EarlyStopping
-import createFaceData
-from matplotlib import pyplot as plt
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score
+from keras.layers import Convolution2D, MaxPooling2D, Flatten
+from keras.layers.core import Dense, Dropout, Activation
+from keras.models import Sequential
+from keras.optimizers import RMSprop
 from sklearn import cross_validation
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
+
+from face_siamese import createFaceData
 
 samp_f = 4
 x, y = createFaceData.gen_data_for_classification(samp_f)
