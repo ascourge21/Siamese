@@ -66,7 +66,12 @@ def visualize_results(input_im, input_label, pred_im, shp):
     draw_patch_in_2d(np.reshape(pred_im, (shp[0], shp[1], shp[2])))  # predicted symantic labels
     plt.show()
 
-src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
+
+local = True
+if local:
+    src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
+else:
+    src = '/ysm-gpfs/home/np327/scratch60/data/'
 data_stem = 'leuven_labeled_semantic_patches_'
 
 # tr_id = [25, 26, 28, 29]
