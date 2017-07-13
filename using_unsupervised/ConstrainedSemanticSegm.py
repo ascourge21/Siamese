@@ -168,7 +168,7 @@ intensity_segmen_joint_model.fit([x_train, y_train], [y_train, dist_match_templa
 
 
 # save the intensity encoder
-encode_name = '/home/nripesh/PycharmProjects/Siamese/using_unsupervised/leuven_acnn_encoder.h5'
+encode_name = 'leuven_acnn_encoder.h5'
 intensity_encoder_model.save(encode_name)
 
 # segmentation reconstruction
