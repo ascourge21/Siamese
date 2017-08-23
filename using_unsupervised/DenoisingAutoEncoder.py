@@ -1,19 +1,19 @@
 """
-    - Here the idea is to use convolutional autoencoders to see if embeddings of intensity patches
-    can be found
-    - the best model (the encoding part) is also likely to work better in the supervised context
-    - also transfer learning can be done to train in the supervised context or train on real data.
-    - specially with real data - there's tonnes and tonnes of unlabeld patches so need to worry.
+    here we'll try denoising autoencoders. perhaps this will learn more meaningful representations than just an
+    autoencoder.
 
-    - First try simple 1 or 2 dense layer model - baseline
-    - Then try convolution + deeper models
+    stacked denoising auto-encoder: http://www.jmlr.org/papers/volume11/vincent10a/vincent10a.pdf
+
+
 """
+
 
 import matplotlib
 import numpy as np
 from keras.callbacks import EarlyStopping
 from keras.layers import Input, Convolution3D, \
     MaxPooling3D, UpSampling3D
+from keras.layers.noise import GaussianNoise
 from keras.models import Model
 
 matplotlib.use('qt4agg')
@@ -74,10 +74,9 @@ x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_
 x_train = np.concatenate((x_train[:, 0], x_train[:, 1]))
 x_test = np.concatenate((x_test[:, 0], x_test[:, 1]))
 
-# randinds = np.random.randint(0, x_train.shape[0], x_train.shape[0])
+randinds = np.random.randint(0, x_train.shape[0], x_train.shape[0])
 off = 1
-# x_train = x_train[randinds, :, off:, off:, off:]
-x_train = x_train[:, :, off:, off:, off:]
+x_train = x_train[randinds, :, off:, off:, off:]
 x_test = x_test[:, :, off:, off:, off:]
 
 input_dim = x_train.shape[1:]
@@ -93,8 +92,9 @@ kern_size = 3
 input_patches = Input(shape=input_dim)
 
 ################################### ENCODER/DECODER ###################################
-x = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, input_shape=input_dim,
-                  activation='relu', dim_ordering='th', border_mode='same')(input_patches)
+x_noise = GaussianNoise(sigma=.4)(input_patches)
+x = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size,
+                  activation='relu', dim_ordering='th', border_mode='same')(x_noise)
 x = MaxPooling3D((2, 2, 2), dim_ordering='th')(x)
 x = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size,
                   activation='relu', dim_ordering='th', border_mode='same')(x)
@@ -112,8 +112,9 @@ encoder = Model(input=input_patches, output=encoded)
 #########################################################################################
 
 # compile and fit model
+input_w_noise = Model(input_patches, x_noise)
 decoder = Model(input_patches, decoded)
-decoder.compile(optimizer='adadelta', loss='mean_absolute_error') # think about advanced losses later - like
+decoder.compile(optimizer='adadelta', loss='mean_absolute_error')  # think about advanced losses later - like
 decoder.fit(x_train, x_train,
             nb_epoch=20,
             batch_size=128,
@@ -122,7 +123,7 @@ decoder.fit(x_train, x_train,
             validation_split=.25,
             callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
 
-encode_name = '/home/nripesh/PycharmProjects/Siamese/using_unsupervised/leuven_int_encoder.h5'
+encode_name = '/home/nripesh/PycharmProjects/Siamese/using_unsupervised/leuven_den_auto_encoder.h5'
 encoder.save(encode_name)
 
 ex_1 = x_test[np.random.randint(0, x_test.shape[0]), :]
@@ -130,6 +131,8 @@ ex_1 = np.reshape(ex_1, (1, ex_1.shape[0], ex_1.shape[1], ex_1.shape[2], ex_1.sh
 ex_1_pred = decoder.predict(ex_1)
 visualize_results(ex_1, ex_1_pred, shp)
 
+# ex_1_noise = input_w_noise.predict(ex_1)
+# visualize_results(ex_1, ex_1_noise, shp)
 
 # if encoded available, check it out
 # if encoded_and_decoded:

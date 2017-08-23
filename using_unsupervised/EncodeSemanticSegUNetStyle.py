@@ -9,8 +9,9 @@
 import matplotlib
 import numpy as np
 from keras.callbacks import EarlyStopping
-from keras.layers import Input, Convolution3D, \
-    MaxPooling3D, UpSampling3D, Merge
+from keras.layers import Input, Conv3D, \
+    MaxPooling3D, UpSampling3D
+from keras.layers.merge import Concatenate
 from keras.models import Model
 
 matplotlib.use('qt4agg')
@@ -37,107 +38,36 @@ def create_loo_train_test_set(src, data_stem, train_ids, test_id):
     return x_tr_all, x_test, y_tr_all, y_test
 
 
-def visualize_results(input_im, input_label, pred_im):
-    im1 = np.reshape(input_im, (input_im.shape[2], input_im.shape[3], input_im.shape[4]))
+def draw_patch_in_2d(im):
     f, axarr = plt.subplots(3, 4)
-    # xy
-    axarr[0, 0].imshow(im1[:, :, 0], interpolation='none', cmap='gray')
-    axarr[0, 0].set_title('xy 0')
-    axarr[0, 1].imshow(im1[:, :, 3], interpolation='none', cmap='gray')
-    axarr[0, 1].set_title('xy 3')
-    axarr[0, 2].imshow(im1[:, :, 5], interpolation='none', cmap='gray')
-    axarr[0, 2].set_title('xy 5')
-    axarr[0, 3].imshow(im1[:, :, 7], interpolation='none', cmap='gray')
-    axarr[0, 3].set_title('xy 7')
-    #xz
-    axarr[1, 0].imshow(im1[:, 0, :], interpolation='none', cmap='gray')
-    axarr[1, 0].set_title('xz 0')
-    axarr[1, 1].imshow(im1[:, 3, :], interpolation='none', cmap='gray')
-    axarr[1, 1].set_title('xz 5')
-    axarr[1, 2].imshow(im1[:, 5, :], interpolation='none', cmap='gray')
-    axarr[1, 2].set_title('xz 3')
-    axarr[1, 3].imshow(im1[:, 7, :], interpolation='none', cmap='gray')
-    axarr[1, 3].set_title('xz 7')
-    #yz
-    axarr[2, 0].imshow(im1[0, :, :], interpolation='none', cmap='gray')
-    axarr[2, 0].set_title('yz 0')
-    axarr[2, 1].imshow(im1[3, :, :], interpolation='none', cmap='gray')
-    axarr[2, 1].set_title('yz 5')
-    axarr[2, 2].imshow(im1[5, :, :], interpolation='none', cmap='gray')
-    axarr[2, 2].set_title('yz 3')
-    axarr[2, 3].imshow(im1[7, :, :], interpolation='none', cmap='gray')
-    axarr[2, 3].set_title('yz 7')
+    for i in range(4):
+        axarr[0, i].imshow(im[:, :, i * 3], interpolation='none', cmap='gray')
+        axarr[0, i].set_title('xy ' + str(i * 3))
 
-    ################### labels
-    im_lab = np.reshape(input_label, (input_label.shape[1], input_label.shape[2], input_label.shape[3]))
-    f, axarr = plt.subplots(3, 4)
-    # xy
-    axarr[0, 0].imshow(im_lab[:, :, 0], interpolation='none', cmap='gray')
-    axarr[0, 0].set_title('xy 0')
-    axarr[0, 1].imshow(im_lab[:, :, 3], interpolation='none', cmap='gray')
-    axarr[0, 1].set_title('xy 3')
-    axarr[0, 2].imshow(im_lab[:, :, 5], interpolation='none', cmap='gray')
-    axarr[0, 2].set_title('xy 5')
-    axarr[0, 3].imshow(im_lab[:, :, 7], interpolation='none', cmap='gray')
-    axarr[0, 3].set_title('xy 7')
-    #xz
-    axarr[1, 0].imshow(im_lab[:, 0, :], interpolation='none', cmap='gray')
-    axarr[1, 0].set_title('xz 0')
-    axarr[1, 1].imshow(im_lab[:, 3, :], interpolation='none', cmap='gray')
-    axarr[1, 1].set_title('xz 5')
-    axarr[1, 2].imshow(im_lab[:, 5, :], interpolation='none', cmap='gray')
-    axarr[1, 2].set_title('xz 3')
-    axarr[1, 3].imshow(im_lab[:, 7, :], interpolation='none', cmap='gray')
-    axarr[1, 3].set_title('xz 7')
-    #yz
-    axarr[2, 0].imshow(im_lab[0, :, :], interpolation='none', cmap='gray')
-    axarr[2, 0].set_title('yz 0')
-    axarr[2, 1].imshow(im_lab[3, :, :], interpolation='none', cmap='gray')
-    axarr[2, 1].set_title('yz 5')
-    axarr[2, 2].imshow(im_lab[5, :, :], interpolation='none', cmap='gray')
-    axarr[2, 2].set_title('yz 3')
-    axarr[2, 3].imshow(im_lab[7, :, :], interpolation='none', cmap='gray')
-    axarr[2, 3].set_title('yz 7')
+    # xz
+    for i in range(4):
+        axarr[1, i].imshow(im[:, i * 3, :], interpolation='none', cmap='gray')
+        axarr[1, i].set_title('xz ' + str(i * 3))
 
-    ################ predicted symantic labels
-    im2 = np.reshape(pred_im, (pred_im.shape[2], pred_im.shape[3], pred_im.shape[4]))
-    f, axarr2 = plt.subplots(3, 4)
-    # xy
-    axarr2[0, 0].imshow(im2[:, :, 0], interpolation='none', cmap='gray')
-    axarr2[0, 0].set_title('xy 0')
-    axarr2[0, 1].imshow(im2[:, :, 3], interpolation='none', cmap='gray')
-    axarr2[0, 1].set_title('xy 3')
-    axarr2[0, 2].imshow(im2[:, :, 5], interpolation='none', cmap='gray')
-    axarr2[0, 2].set_title('xy 5')
-    axarr2[0, 3].imshow(im2[:, :, 7], interpolation='none', cmap='gray')
-    axarr2[0, 3].set_title('xy 7')
-    #xz
-    axarr2[1, 0].imshow(im2[:, 0, :], interpolation='none', cmap='gray')
-    axarr2[1, 0].set_title('xz 0')
-    axarr2[1, 1].imshow(im2[:, 3, :], interpolation='none', cmap='gray')
-    axarr2[1, 1].set_title('xz 5')
-    axarr2[1, 2].imshow(im2[:, 5, :], interpolation='none', cmap='gray')
-    axarr2[1, 2].set_title('xz 3')
-    axarr2[1, 3].imshow(im2[:, 7, :], interpolation='none', cmap='gray')
-    axarr2[1, 3].set_title('xz 7')
-    #yz
-    axarr2[2, 0].imshow(im2[0, :, :], interpolation='none', cmap='gray')
-    axarr2[2, 0].set_title('yz 0')
-    axarr2[2, 1].imshow(im2[3, :, :], interpolation='none', cmap='gray')
-    axarr2[2, 1].set_title('yz 5')
-    axarr2[2, 2].imshow(im2[5, :, :], interpolation='none', cmap='gray')
-    axarr2[2, 2].set_title('yz 3')
-    axarr2[2, 3].imshow(im2[7, :, :], interpolation='none', cmap='gray')
-    axarr2[2, 3].set_title('yz 7')
+    # yz
+    for i in range(4):
+        axarr[2, i].imshow(im[i * 3, :, :], interpolation='none', cmap='gray')
+        axarr[2, i].set_title('yz ' + str(i * 3))
 
+
+def visualize_results(input_im, input_label, pred_im, shp):
+    draw_patch_in_2d(np.reshape(input_im, (shp[0], shp[1], shp[2])))  # intensity
+    draw_patch_in_2d(np.reshape(input_label, (shp[0], shp[1], shp[2])))  # segmentation
+    draw_patch_in_2d(np.reshape(pred_im, (shp[0], shp[1], shp[2])))  # predicted symantic labels
     plt.show()
+
 
 src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
 data_stem = 'leuven_labeled_semantic_patches_'
 
-# tr_id = [25, 26, 28, 29]
-tr_id = [25]
-test_id = 27
+tr_id = [25, 27, 28, 29]
+# tr_id = [25]
+test_id = 26
 
 # get paired dataset and remove the pairing
 x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_id, test_id)
@@ -149,42 +79,44 @@ x_train = x_train[:, :, off:, off:, off:]
 x_test = x_test[:, :, off:, off:, off:]
 y_train = y_train[:, :, off:, off:, off:]
 y_test = y_test[:, :, off:, off:, off:]
+y_train[y_train != 2] = 0
+y_test[y_test != 2] = 0
+y_train[y_train == 2] = 1
+y_test[y_test == 2] = 1
 
 input_dim = x_train.shape[1:]
+shp = list(x_train.shape)
+shp = shp[2:]
 
 # encoding layer
-conv_channel_1 = 5
-conv_channel_2 = 15
+conv_channel_1 = 8
+conv_channel_2 = 20
 kern_size = 3
 
 ############################ encoder - semantic decoder ##########################
 input_patches = Input(shape=input_dim)
-x0 = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, input_shape=input_dim,
-                   activation='relu', dim_ordering='th', border_mode='same')(input_patches)
-x1 = MaxPooling3D((2, 2, 2), dim_ordering='th')(x0)
-x2 = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size,
-                   activation='relu', dim_ordering='th', border_mode='same')(x1)
-encoded = MaxPooling3D((2, 2, 2), dim_ordering='th')(x2)
+x0 = Conv3D(conv_channel_1, kernel_size=kern_size, input_shape=input_dim,
+            data_format='channels_first', padding='same', activation='relu')(input_patches)
+x1 = MaxPooling3D((2, 2, 2), data_format='channels_first')(x0)
+x2 = Conv3D(conv_channel_2, kernel_size=kern_size, data_format='channels_first', padding='same', activation='relu')(x1)
+encoded = MaxPooling3D((2, 2, 2), data_format='channels_first')(x2)
 
-x3 = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
-                   border_mode='same')(encoded)
-x4 = UpSampling3D(size=(2, 2, 2), dim_ordering='th')(x3)
-x4 = Merge(mode='concat', concat_axis=1)([x4, x2])
-x5 = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
-                   border_mode='same')(x4)
-x6 = UpSampling3D(size=(2, 2, 2), dim_ordering='th')(x5)
-x4 = Merge(mode='concat', concat_axis=1)([x6, x0])
-decoded = Convolution3D(1, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
-                        border_mode='same')(x6)
-encoder = Model(input=input_patches, output=encoded)
+x3 = Conv3D(conv_channel_2, kernel_size=kern_size, data_format='channels_first', padding='same', activation='relu')(encoded)
+x4 = UpSampling3D(size=(2, 2, 2), data_format='channels_first')(x3)
+x5 = Concatenate(axis=1)([x4, x2])
+x6 = Conv3D(conv_channel_1, kernel_size=kern_size, data_format='channels_first', padding='same', activation='relu')(x5)
+x7 = UpSampling3D(size=(2, 2, 2), data_format='channels_first')(x6)
+x8 = Concatenate(axis=1)([x7, x0])
+decoded = Conv3D(1, kernel_size=kern_size, data_format='channels_first', padding='same', activation='relu')(x8)
+encoder = Model(inputs=input_patches, outputs=encoded)
 ####################################################################################
 
 
 # compile and fit model
 decoder = Model(input_patches, decoded)
-decoder.compile(optimizer='adadelta', loss='mean_absolute_error')
+decoder.compile(optimizer='adadelta', loss='binary_crossentropy')
 decoder.fit(x_train, y_train,
-            nb_epoch=40,
+            epochs=40,
             batch_size=128,
             shuffle=True,
             verbose=2,
@@ -199,7 +131,7 @@ ex_1 = x_test[rand_int1, :]
 ex_1_label = y_test[rand_int1, :]
 ex_1 = np.reshape(ex_1, (1, ex_1.shape[0], ex_1.shape[1], ex_1.shape[2], ex_1.shape[3]))
 ex_1_pred = decoder.predict(ex_1)
-visualize_results(ex_1, ex_1_label, ex_1_pred)
+visualize_results(ex_1, ex_1_label, ex_1_pred, shp)
 
 
 # if encoded available, check it out

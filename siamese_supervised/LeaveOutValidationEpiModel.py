@@ -1,15 +1,18 @@
 import numpy as np
 from keras.callbacks import EarlyStopping
-from keras.layers import Input, Dense, Dropout, Convolution3D, \
+from keras.layers import Input, Dense, Dropout, Conv3D, \
     Flatten, BatchNormalization
 from keras.layers.core import Lambda
 from keras.models import Model, Sequential
 from keras.optimizers import RMSprop
 from sklearn.metrics import roc_curve, auc
-
+from siamese_supervised import createShapeData
 from face_siamese.SiameseFunctions import eucl_dist_output_shape, euclidean_distance, \
     contrastive_loss
-from siamese_supervised import createShapeData
+
+import matplotlib
+matplotlib.use('qt4agg')
+from matplotlib import pyplot as plt
 
 
 # a CNN layer for intensity inputs
@@ -19,76 +22,53 @@ def create_cnn_network(input_dim, no_conv_filt, dense_n):
     seq = Sequential()
 
     # conv layers
-    kern_size = 3
-    seq.add(Convolution3D(5, kern_size, kern_size, kern_size, input_shape=input_dim,
-                          border_mode='valid', dim_ordering='th', activation='relu'))
+    seq.add(Conv3D(5, kernel_size=(3, 3, 3), input_shape=input_dim, padding='valid',
+                   data_format='channels_first', activation='relu'))
     seq.add(Dropout(.2))
-    seq.add(BatchNormalization(mode=2))
-
-    kern_size = 3
-    seq.add(Convolution3D(10, kern_size, kern_size, kern_size,
-                          border_mode='valid', dim_ordering='th', activation='relu'))
+    seq.add(Conv3D(10, kernel_size=(3, 3, 3), padding='valid',
+                   data_format='channels_first', activation='relu'))
     seq.add(Dropout(.2))
-    seq.add(BatchNormalization(mode=2))
-
-    kern_size = 3
-    seq.add(Convolution3D(15, kern_size, kern_size, kern_size,
-                          border_mode='valid', dim_ordering='th', activation='relu'))
-    seq.add(Dropout(.2))
-    seq.add(BatchNormalization(mode=2))
 
     # dense layers
     seq.add(Flatten())
-    seq.add(Dense(dense_n, activation='relu'))
-    seq.add(Dropout(.2))
-    seq.add(BatchNormalization(mode=2))
-    return seq
-
-
-# a CNN layer for intensity inputs
-def create_simple_network(input_dim, no_conv_filt, dense_n):
-    '''Base network to be shared (eq. to feature extraction).
-    '''
-    seq = Sequential()
-    kern_size = 3
-
-    # conv layers
-    seq.add(Convolution3D(15, kern_size, kern_size, kern_size, input_shape=input_dim,
-                          border_mode='valid', dim_ordering='th', activation='relu'))
-    seq.add(Dropout(.2))
-    seq.add(BatchNormalization(mode=2))
-
-    # dense layers
-    seq.add(Flatten())
-    seq.add(Dense(100, activation='relu'))
-    seq.add(Dropout(.2))
-    seq.add(BatchNormalization(mode=2))
+    seq.add(Dense(75, activation='sigmoid'))
     return seq
 
 
 # train model given x_train and y_train
 def train_model(x_tr, y_tr, conv_f_n, dense_n):
-    save_name = 'shape_match_model_epi_k3.h5'
+    save_name = '/home/nripesh/PycharmProjects/Siamese/siamese_supervised/shape_match_model_epi_sx4.h5'
     tr_epoch = 20
 
     input_dim = x_tr.shape[2:]
     input_a = Input(shape=input_dim)
     input_b = Input(shape=input_dim)
-    # base_network = create_cnn_network(input_dim, conv_f_n, dense_n)
-    base_network = create_simple_network(input_dim, conv_f_n, dense_n)
+    base_network = create_cnn_network(input_dim, conv_f_n, dense_n)
     processed_a = base_network(input_a)
     processed_b = base_network(input_b)
 
     distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([processed_a, processed_b])
 
-    model_tr = Model(input=[input_a, input_b], output=distance)
+    model_tr = Model(inputs=[input_a, input_b], outputs=distance)
 
     # train
-    # opt_func = RMSprop(lr=.0005, clipnorm=1)
-    opt_func = RMSprop()
+    opt_func = RMSprop(lr=.003)
     model_tr.compile(loss=contrastive_loss, optimizer=opt_func)
-    model_tr.fit([x_tr[:, 0], x_tr[:, 1]], y_tr, validation_split=.30,
-                 batch_size=128, verbose=2, nb_epoch=tr_epoch, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+    history = model_tr.fit([x_tr[:, 0], x_tr[:, 1]], y_tr, validation_split=.30,
+                           batch_size=128, verbose=2, epochs=tr_epoch,
+                           callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+
+    # summarize history for loss
+    plt.figure(1)
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'val'], loc='upper left')
+    # plt.show()
+    plt.savefig('/home/nripesh/PycharmProjects/Siamese/siamese_supervised/epi_train_val_loss.png')
+    plt.close(1)
     model_tr.save(save_name)
     return model_tr
 
@@ -135,8 +115,8 @@ data_stem = 'x_data_intensity_epi_'
 
 # run this to perform cross validation
 def do_cross_val():
-    conv_n_vals = [10, 15]
-    dense_n_vals = [100, 200]
+    conv_n_vals = [15]
+    dense_n_vals = [100]
     avail_ids = [1, 2, 3, 4, 5]
 
     for conv_n in conv_n_vals:
@@ -152,11 +132,25 @@ def do_cross_val():
                 print()
 
 
+# visualize images and filters - post running
+def visualize():
+    n_i = np.random.randint(0, x_train.shape[0])
+    n_z = np.random.randint(0, 11)
+    a = x_train[n_i, 0, 0, :, :, n_z]
+    b = x_train[n_i, 0, 1, :, :, n_z]
+
+    plt.figure(1)
+    plt.imshow(a, interpolation='none', cmap='gray')
+
+    plt.figure(2)
+    plt.imshow(b, interpolation='none', cmap='gray')
+    plt.show()
+
 # run this to get the final model
 # def train_final_model():
 conv_n = 15
 dense_n = 50
-tr_id = [1, 2, 3, 4, 5]
+tr_id = [1, 3, 4, 5]
 test_id = 2
 x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_id, test_id)
 model = train_model(x_train, y_train, conv_n, dense_n)
@@ -164,6 +158,10 @@ run_test(model, x_test, y_test, tr_id, test_id, conv_n, dense_n)
 print("epi, trained on: " + str(tr_id) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + "\n")
 
 
-# run cross validation
-# do_cross_val()
-# train_final_model()
+# with dense: 0.845893070671
+# no dense: .82
+# with dense, all data (1, 3, 4, 5): .875
+# with dense 100, all data (1, 3, 4, 5), higher learning rate: .875
+# no dense, all data (1, 3, 4, 5), higher learning rate: .81
+# yes dense: smaller model 5, 10 conv, dense 75: .878
+# yes dense: smaller model 5, 10 conv, dense 75 (lr .003): .875

@@ -4,7 +4,6 @@
 """
 
 import numpy as np
-from keras.layers.core import Lambda
 from keras.layers import Input, Dense, Dropout, Convolution3D, \
     MaxPooling3D, Flatten, BatchNormalization
 from keras.models import Model, Sequential
@@ -26,12 +25,13 @@ def create_cnn_network(input_dim):
 
     # conv layers
     kern_size = 3
-    seq.add(Convolution3D(10, kern_size, kern_size, kern_size, input_shape=input_dim,
+    seq.add(Convolution3D(5, kern_size, kern_size, kern_size, input_shape=input_dim,
                           border_mode='valid', dim_ordering='th', activation='relu'))
     seq.add(Dropout(.2))
     seq.add(MaxPooling3D((2, 2, 2), dim_ordering='th'))
-
-    seq.add(Convolution3D(3, kern_size, kern_size, kern_size,
+    seq.add(Convolution3D(15, kern_size, kern_size, kern_size,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
+    seq.add(Convolution3D(45, kern_size, kern_size, kern_size,
                           border_mode='valid', dim_ordering='th', activation='relu'))
     seq.add(Dropout(.2))
     seq.add(Flatten())
@@ -65,6 +65,10 @@ data_stem = 'leuven_labeled_patches_'
 x_train, y_train, x_test, y_test = create_train_test_set(src, data_stem, tr_id, test_id)
 
 # encoding layer
+rand_samp_inds = np.random.randint(0, x_train.shape[0], 200000)
+x_train = x_train[rand_samp_inds, :, :, :, :]
+y_train = y_train[rand_samp_inds, :]
+
 input_dim = x_train.shape[1:]
 input_a = Input(shape=input_dim)
 base_network = create_cnn_network(input_dim)

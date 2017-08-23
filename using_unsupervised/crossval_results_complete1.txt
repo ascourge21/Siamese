@@ -1,0 +1,29 @@
+param: {'N_l': 2, 'K': 2, 'N_f': [5, 10]}
+avg auc for current param: 0.890118934503
+param: {'N_l': 2, 'K': 2, 'N_f': [10, 20]}
+avg auc for current param: 0.905978550401
+param: {'N_l': 3, 'K': 2, 'N_f': [5, 10, 20]}
+avg auc for current param: 0.883389470512
+param: {'N_l': 3, 'K': 2, 'N_f': [10, 20, 40]}
+avg auc for current param: 0.910591984093
+param: {'N_l': 2, 'K': 3, 'N_f': [5, 10]}
+avg auc for current param: 0.898903396911
+param: {'N_l': 2, 'K': 3, 'N_f': [10, 20]}
+avg auc for current param: 0.900662606698
+param: {'N_l': 3, 'K': 3, 'N_f': [5, 10, 20]}
+avg auc for current param: 0.889256617109
+param: {'N_l': 3, 'K': 3, 'N_f': [10, 20, 40]}
+avg auc for current param: 0.895484077935
+param: {'N_l': 2, 'K': 4, 'N_f': [5, 10]}
+avg auc for current param: 0.909727911683
+param: {'N_l': 2, 'K': 4, 'N_f': [10, 20]}
+NaN during training, failure
+NaN during training, failure
+NaN during training, failure
+NaN during training, failure
+NaN during training, failure
+avg auc for current param: 0.0
+param: {'N_l': 3, 'K': 4, 'N_f': [5, 10, 20]}
+avg auc for current param: 0.891374711539
+param: {'N_l': 3, 'K': 4, 'N_f': [10, 20, 40]}
+avg auc for current param: 0.89345848592

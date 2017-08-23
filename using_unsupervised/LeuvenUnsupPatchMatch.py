@@ -1,11 +1,16 @@
+"""
+    here we build the standard siamese architecture. However, the data comes from segmentation only and not ground
+    truth mesh based trajectories.
+
+    if this worked better than stacked autoencoders, then the hope is that it'll translate well to in vivo data.
+"""
+
 import matplotlib
 import numpy as np
 from keras.callbacks import EarlyStopping
-from keras.layers import Input, Dense, Dropout, Conv3D, \
-    Flatten, BatchNormalization, Activation
-from keras.layers.advanced_activations import LeakyReLU
+from keras.layers import Input, Dense, Dropout, Convolution3D, \
+    Flatten, BatchNormalization
 from keras.layers.core import Lambda
-from keras.layers.pooling import AveragePooling3D
 from keras.models import Model, Sequential
 from keras.optimizers import RMSprop
 
@@ -13,8 +18,8 @@ matplotlib.use('qt4agg')
 from matplotlib import pyplot as plt
 from sklearn.metrics import roc_curve, auc
 
-from siamese_supervised import createShapeData
-from face_siamese.SiameseFunctions import eucl_dist_output_shape, euclidean_distance, \
+import createShapeData
+from SiameseFunctions import eucl_dist_output_shape, euclidean_distance, \
     contrastive_loss
 
 
@@ -25,30 +30,36 @@ def create_cnn_network(input_dim, no_conv_filt, dense_n):
     seq = Sequential()
 
     # conv layers
-    seq.add(Conv3D(5, kernel_size=(3, 3, 3), input_shape=input_dim, padding='valid',
-                   data_format='channels_first', activation='relu'))
+    kern_size = 3
+    seq.add(Convolution3D(5, kern_size, kern_size, kern_size, input_shape=input_dim,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
     seq.add(Dropout(.2))
+    seq.add(BatchNormalization(mode=2))
 
-    seq.add(Conv3D(10, kernel_size=(3, 3, 3), padding='valid',
-                   data_format='channels_first', activation='relu'))
+    kern_size = 3
+    seq.add(Convolution3D(10, kern_size, kern_size, kern_size,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
     seq.add(Dropout(.2))
+    seq.add(BatchNormalization(mode=2))
 
-    seq.add(Conv3D(15, kernel_size=(3, 3, 3), padding='valid',
-                   data_format='channels_first', activation='relu'))
+    kern_size = 3
+    seq.add(Convolution3D(15, kern_size, kern_size, kern_size,
+                          border_mode='valid', dim_ordering='th', activation='relu'))
     seq.add(Dropout(.2))
+    seq.add(BatchNormalization(mode=2))
 
     # dense layers
     seq.add(Flatten())
     seq.add(Dense(dense_n, activation='relu'))
     seq.add(Dropout(.2))
-    # seq.add(BatchNormalization())
+    seq.add(BatchNormalization(mode=2))
     return seq
 
 
 # train model given x_train and y_train
 def train_model(x_tr, y_tr, conv_f_n, dense_n):
-    save_name = '/home/nripesh/PycharmProjects/Siamese/siamese_supervised/shape_match_model_endo_k3_new.h5'
-    tr_epoch = 10
+    save_name = 'leuven_unsup_siamese_match.h5'
+    tr_epoch = 20
 
     input_dim = x_tr.shape[2:]
     input_a = Input(shape=input_dim)
@@ -59,14 +70,14 @@ def train_model(x_tr, y_tr, conv_f_n, dense_n):
 
     distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([processed_a, processed_b])
 
-    model_tr = Model(inputs=[input_a, input_b], outputs=distance)
+    model_tr = Model(input=[input_a, input_b], output=distance)
 
     # train
     # opt_func = RMSprop(lr=.0005, clipnorm=1)
     opt_func = RMSprop()
     model_tr.compile(loss=contrastive_loss, optimizer=opt_func)
     model_tr.fit([x_tr[:, 0], x_tr[:, 1]], y_tr, validation_split=.30,
-                 batch_size=128, verbose=2, epochs=tr_epoch, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+                 batch_size=128, verbose=2, nb_epoch=tr_epoch, callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
     model_tr.save(save_name)
     return model_tr
 
@@ -79,12 +90,12 @@ def run_test(model, x_ts, y_ts, tr_ids, ts_n, conv_n, dense_n):
     # get auc scores
     tpr, fpr, _ = roc_curve(y_ts, pred_ts)
     roc_auc = auc(fpr, tpr)
-    target = open('auc_scores_summary_endo.txt', 'a')
-    target.write("endo, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + ", auc: " +
-                 str(roc_auc) + "\n")
-    target.close()
-    print("endo, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " + str(conv_n) + ", dense n: " + str(dense_n) + ", auc: " +
-                 str(roc_auc) + "\n")
+    # target = open('auc_scores_summary_endo.txt', 'a')
+    # target.write("endo, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " +
+    #              str(conv_n) + ", dense n: " + str(dense_n) + ", auc: " + str(roc_auc) + "\n")
+    # target.close()
+    print("endo, trained on: " + str(tr_ids) + ", tested on: " + str(ts_n) + ", conv n: " +
+          str(conv_n) + ", dense n: " + str(dense_n) + ", auc: " + str(roc_auc) + "\n")
 
 
 # create groups of 4 image sets as training and 1 as test
@@ -108,7 +119,7 @@ def create_loo_train_test_set(src, data_stem, train_ids, test_id):
 # load 1 and 2 and test on 3
 src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
 # src = '/home/nripesh/Dropbox/temp_images/run_on_allens/'
-data_stem = 'x_data_intensity_endo_'
+data_stem = 'leuven_unsup_intensity_match_'
 
 
 # run this to perform cross validation
@@ -148,9 +159,8 @@ def visualize():
 # def train_final_model():
 conv_n = 15
 dense_n = 50
-# tr_id = [1, 3, 4, 5]  # too large with all of them
-tr_id = [1]
-test_id = 1
+tr_id = [25, 27, 28, 29]  # too large with all of them
+test_id = 26
 x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_id, test_id)
 model = train_model(x_train, y_train, conv_n, dense_n)
 run_test(model, x_test, y_test, tr_id, test_id, conv_n, dense_n)

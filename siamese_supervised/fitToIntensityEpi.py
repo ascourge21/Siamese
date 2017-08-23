@@ -11,9 +11,10 @@ import h5py
 import numpy as np
 from keras.models import load_model
 from scipy.io import loadmat, savemat
+from SiameseFunctions import contrastive_loss
 
 # the best model is always saved in the nn_matching_models folder
-MODEL_NAME = 'shape_match_model_epi.h5'
+MODEL_NAME = 'shape_match_model_epi_sx4.h5'
 # MODEL_NAME = 'shape_match_model_epi_simple.h5'
 
 src = sys.argv[1]
@@ -23,7 +24,7 @@ rand_idf = sys.argv[2]
 
 if os.path.isfile(src + 'patch_pairs_' + rand_idf + '_1.h5'):
     # only load if .mat file is found
-    intensity_model = load_model(MODEL_NAME)
+    intensity_model = load_model(MODEL_NAME, custom_objects={'contrastive_loss': contrastive_loss})
 
     no_of_files = int(sys.argv[3])
     print('Processing epi, total  of: ' + str(no_of_files) + ' files.')

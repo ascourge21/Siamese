@@ -5,11 +5,12 @@
 import numpy as np
 # from keras.optimizers import SGD, RMSprop
 from keras.layers.core import Lambda
-from keras.layers import Input, Convolution3D, \
-    MaxPooling3D, Flatten, UpSampling3D
-# from keras.regularizers import WeightRegularizer, l2
+from keras.layers import Input, Conv3D, \
+    MaxPooling3D, Flatten, UpSampling3D, Dropout
 from keras.models import Model
+from keras.layers.merge import Concatenate
 from keras.callbacks import EarlyStopping
+from sklearn.metrics import roc_curve, auc
 # from keras import backend as K
 
 
@@ -43,21 +44,38 @@ def create_loo_train_test_set(src, data_stem, train_ids, test_id):
     return x_tr_all, x_test, y_tr_all, y_test
 
 
+def create_loo_train_test_set_int_paired(src, data_stem, train_ids, test_id):
+    x_tr = []
+    y_tr = []
+    for tid in train_ids:
+        train_name = data_stem + str(tid)
+        x_train, y_train = createShapeData.get_int_paired_format(src, train_name)
+        x_tr.append(x_train)
+        y_tr.append(y_train)
+
+    x_tr_all = np.concatenate(x_tr)
+    y_tr_all = np.concatenate(y_tr)
+
+    test_name = data_stem + str(test_id)
+    x_test, y_test = createShapeData.get_int_paired_format(src, test_name)
+    return x_tr_all, x_test, y_tr_all, y_test
+
+
 def draw_patch_in_2d(im):
     f, axarr = plt.subplots(3, 4)
-    for i in range(4):
-        axarr[0, i].imshow(im[:, :, i * 3], interpolation='none', cmap='gray')
-        axarr[0, i].set_title('xy ' + str(i * 3))
+    for j in range(4):
+        axarr[0, j].imshow(im[:, :, j * 3], interpolation='none', cmap='gray')
+        axarr[0, j].set_title('xy ' + str(j * 3))
 
     # xz
-    for i in range(4):
-        axarr[1, i].imshow(im[:, i * 3, :], interpolation='none', cmap='gray')
-        axarr[1, i].set_title('xz ' + str(i * 3))
+    for j in range(4):
+        axarr[1, j].imshow(im[:, j * 3, :], interpolation='none', cmap='gray')
+        axarr[1, j].set_title('xz ' + str(j * 3))
 
     # yz
-    for i in range(4):
-        axarr[2, i].imshow(im[i * 3, :, :], interpolation='none', cmap='gray')
-        axarr[2, i].set_title('yz ' + str(i * 3))
+    for j in range(4):
+        axarr[2, j].imshow(im[j * 3, :, :], interpolation='none', cmap='gray')
+        axarr[2, j].set_title('yz ' + str(j * 3))
 
 
 def visualize_results(input_im, input_label, pred_im, shp):
@@ -66,12 +84,19 @@ def visualize_results(input_im, input_label, pred_im, shp):
     draw_patch_in_2d(np.reshape(pred_im, (shp[0], shp[1], shp[2])))  # predicted symantic labels
     plt.show()
 
+
+def dist_calc_simple(x_0, x_1):
+    model_pred = np.zeros((x_0.shape[0], 1))
+    for k in range(model_pred.shape[0]):
+        model_pred[k] = np.linalg.norm(x_0[k, :] - x_1[k, :]) / x_0.shape[1]
+    return model_pred
+
 src = '/home/nripesh/Dropbox/research_matlab/feature_tracking/generating_train_data_forNNet/'
 data_stem = 'leuven_labeled_semantic_patches_'
 
-tr_id = [25, 26, 28, 29]
-# tr_id = [26]
-test_id = 27
+# tr_id = [25, 26, 28, 29]
+tr_id = [251]
+test_id = 252
 
 # get paired dataset and remove the pairing
 x_train, x_test, y_train, y_test = create_loo_train_test_set(src, data_stem, tr_id, test_id)
@@ -98,78 +123,121 @@ input_dim = x_train.shape[1:]
 # visualize_results(x_train[0, 0, :, :, :], y_train[0, 0, :, :, :], y_train[0, 0, :, :, :], shp)
 
 
-######################### encoding layer - segmentation #########################
-conv_channel_1 = 5
-conv_channel_2 = 15
+######################### encoding/decoding - segmentation #########################
+conv_channel_1 = 8
+conv_channel_2 = 20
 kern_size = 3
 
 segmen_patches = Input(shape=input_dim)
-x = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, input_shape=input_dim,
-                  activation='relu', dim_ordering='th', border_mode='same')(segmen_patches)
-x = MaxPooling3D((2, 2, 2), dim_ordering='th')(x)
-x = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size,
-                  activation='relu', dim_ordering='th', border_mode='same')(x)
-encoded_semantic = MaxPooling3D((2, 2, 2), dim_ordering='th')(x)
+x0 = Conv3D(conv_channel_1, kernel_size=kern_size, input_shape=input_dim,
+            data_format='channels_first', padding='same', activation='relu')(segmen_patches)
+x1 = MaxPooling3D((2, 2, 2), data_format='channels_first')(x0)
+x2 = Conv3D(conv_channel_2, kernel_size=kern_size, data_format='channels_first', padding='same', activation='relu')(x1)
+encoded_semantic = MaxPooling3D((2, 2, 2), data_format='channels_first')(x2)
 
-x = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
-                  border_mode='same')(encoded_semantic)
-x = UpSampling3D(size=(2, 2, 2), dim_ordering='th')(x)
-x = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
-                  border_mode='same')(x)
-x = UpSampling3D(size=(2, 2, 2), dim_ordering='th')(x)
-segmen_recons = Convolution3D(1, kern_size, kern_size, kern_size, activation='relu', dim_ordering='th',
-                              border_mode='same')(x)
+x3 = Conv3D(conv_channel_2, kernel_size=kern_size, data_format='channels_first',
+            padding='same', activation='relu')(encoded_semantic)
+x4 = UpSampling3D(size=(2, 2, 2), data_format='channels_first')(x3)
+x5 = Concatenate(axis=1)([x4, x2])
+x6 = Conv3D(conv_channel_1, kernel_size=kern_size, data_format='channels_first', padding='same', activation='relu')(x5)
+x7 = UpSampling3D(size=(2, 2, 2), data_format='channels_first')(x6)
+x8 = Concatenate(axis=1)([x7, x0])
+segmen_recons = Conv3D(1, kernel_size=kern_size, data_format='channels_first', padding='same', activation='sigmoid')(x8)
 
-######################### encoding layer - intensity #########################
+######################### encoding/decoding - intensity #########################
 intensity_patches = Input(shape=input_dim)
-x = Convolution3D(conv_channel_1, kern_size, kern_size, kern_size, input_shape=input_dim,
-                  activation='relu', dim_ordering='th', border_mode='same')(intensity_patches)
-x = MaxPooling3D((2, 2, 2), dim_ordering='th')(x)
-x = Convolution3D(conv_channel_2, kern_size, kern_size, kern_size,
-                  activation='relu', dim_ordering='th', border_mode='same')(x)
-encoded_intensity = MaxPooling3D((2, 2, 2), dim_ordering='th')(x)
+x00 = Conv3D(conv_channel_1, kernel_size=kern_size, input_shape=input_dim,
+             data_format='channels_first', padding='same', activation='relu')(intensity_patches)
+x01 = MaxPooling3D((2, 2, 2), data_format='channels_first')(x00)
+x02 = Conv3D(conv_channel_2, kernel_size=kern_size, data_format='channels_first',
+             padding='same', activation='relu')(x01)
+encoded_intensity = MaxPooling3D((2, 2, 2), data_format='channels_first')(x02)
+
+x03 = Conv3D(conv_channel_2, kernel_size=kern_size, data_format='channels_first',
+             padding='same', activation='relu')(encoded_intensity)
+x04 = UpSampling3D(size=(2, 2, 2), data_format='channels_first')(x03)
+x05 = Concatenate(axis=1)([x04, x02])
+x06 = Conv3D(conv_channel_1, kernel_size=kern_size, data_format='channels_first',
+             padding='same', activation='relu')(x05)
+x07 = UpSampling3D(size=(2, 2, 2), data_format='channels_first')(x06)
+x08 = Concatenate(axis=1)([x07, x00])
+intensity_recons = Conv3D(1, kernel_size=kern_size, data_format='channels_first',
+                          padding='same', activation='sigmoid')(x08)
 
 
 ############################# train and fit #####################################
-
-segmentation_encoder = Model(input=segmen_patches, output=encoded_semantic)
+intensity_encoder = Model(inputs=[intensity_patches], outputs=[encoded_intensity])
+segmentation_encoder = Model(inputs=[segmen_patches], outputs=[encoded_semantic])
 
 # compile and fit model
-segmen_encoder_decoder_model = Model(input=[segmen_patches],
-                                     output=[segmen_recons])
-segmen_encoder_decoder_model.compile(optimizer='RMSprop', loss='binary_crossentropy')
-intensity_encoder_model = Model(input=[intensity_patches],
-                                output=[encoded_intensity])
-intensity_encoder_model.compile(optimizer='RMSprop', loss='mean_squared_error')
+segmen_encoder_decoder_model = Model(inputs=[segmen_patches], outputs=[segmen_recons])
+segmen_encoder_decoder_model.compile(optimizer='adadelta', loss='binary_crossentropy')
+intensity_encoder_decoder_model = Model(inputs=[intensity_patches], outputs=[encoded_intensity, intensity_recons])
+intensity_encoder_decoder_model.compile(optimizer='adadelta', loss=['mean_absolute_error', 'binary_crossentropy'])
 
 
 # first train each models for 1 epoch, separately
-segmen_encoder_decoder_model.fit([y_train], [y_train], nb_epoch=1, batch_size=128, shuffle=True,
+segmen_encoder_decoder_model.fit([y_train], [y_train], epochs=1, batch_size=128, shuffle=True,
                                  verbose=2, validation_split=.25,
                                  callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
 encoded_seg_eval = segmentation_encoder.predict(y_train)
-intensity_encoder_model.fit([x_train], encoded_seg_eval, nb_epoch=1, batch_size=128, shuffle=True,
-                            verbose=2, validation_split=.25,
-                            callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+intensity_encoder_decoder_model.fit([x_train], [encoded_seg_eval, y_train], epochs=1, batch_size=128, shuffle=True,
+                                    verbose=2, validation_split=.25,
+                                    callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
 
 # now construct a joint model and train it
 batch_size = 128
 dist_match_template = np.zeros((x_train.shape[0]))
 encoded_intensity_flat = Flatten()(encoded_intensity)
 encoded_semantic_flat = Flatten()(encoded_semantic)
-encoding_distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([encoded_semantic_flat, encoded_intensity_flat])
-intensity_segmen_joint_model = Model(input=[intensity_patches, segmen_patches],
-                                     output=[segmen_recons, encoding_distance])
-intensity_segmen_joint_model.compile(optimizer='RMSprop', loss=['binary_crossentropy', 'mean_squared_error'],
-                                     loss_weights=[10, 1])
-intensity_segmen_joint_model.fit([x_train, y_train], [y_train, dist_match_template], nb_epoch=40, batch_size=batch_size,
+encoding_distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)\
+    ([encoded_semantic_flat, encoded_intensity_flat])
+
+
+# somehow first training without the intensity reconstruction seems to work well
+intensity_segmen_joint_model = Model(inputs=[intensity_patches, segmen_patches],
+                                     outputs=[segmen_recons, encoding_distance])
+intensity_segmen_joint_model.compile(optimizer='adadelta',
+                                     loss=['binary_crossentropy', 'mean_absolute_error'],
+                                     loss_weights=[1, 1])
+intensity_segmen_joint_model.fit([x_train, y_train], [y_train, dist_match_template],
+                                 epochs=2, batch_size=batch_size,
+                                 shuffle=True, verbose=2, validation_split=.25,
+                                 callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
+
+####
+intensity_segmen_joint_model = Model(inputs=[intensity_patches, segmen_patches],
+                                     outputs=[segmen_recons, intensity_recons, encoding_distance])
+intensity_segmen_joint_model.compile(optimizer='adadelta',
+                                     loss=['binary_crossentropy', 'binary_crossentropy', 'mean_absolute_error'],
+                                     loss_weights=[1, 1, 1])
+intensity_segmen_joint_model.fit([x_train, y_train], [y_train, y_train, dist_match_template],
+                                 epochs=2, batch_size=batch_size,
                                  shuffle=True, verbose=2, validation_split=.25,
                                  callbacks=[EarlyStopping(monitor='val_loss', patience=2)])
 
 
 # save the intensity encoder
 encode_name = 'leuven_acnn_encoder.h5'
-intensity_encoder_model.save(encode_name)
+intensity_encoder.save(encode_name)
+
+
+def test_on_UNSUP_model(UNSUP_ENCODER, x, y):
+    x_0_encode = UNSUP_ENCODER.predict(x[:, 0, :, 1:, 1:, 1:])
+    x_1_encode = UNSUP_ENCODER.predict(x[:, 1, :, 1:, 1:, 1:])
+    # vectorize the matrices
+    x_en_sz = x_0_encode.shape
+    x_0_encode = np.reshape(x_0_encode, (x_en_sz[0], x_en_sz[1] * x_en_sz[2] * x_en_sz[3] * x_en_sz[4]))
+    x_1_encode = np.reshape(x_1_encode, (x_en_sz[0], x_en_sz[1] * x_en_sz[2] * x_en_sz[3] * x_en_sz[4]))
+    model_pred = dist_calc_simple(x_0_encode, x_1_encode)
+    tpr, fpr, _ = roc_curve(y, model_pred)
+    roc_auc = auc(fpr, tpr)
+    print('auc is : ' + str(roc_auc))
+
+test_data_stem = 'x_data_intensity_comb_'
+x_train, _, y_train, _ = create_loo_train_test_set_int_paired(src, test_data_stem, [2], 2)
+test_on_UNSUP_model(intensity_encoder, x_train, y_train)
+
 
 # segmentation reconstruction
 for i in range(5):
@@ -183,7 +251,7 @@ for i in range(5):
     # visualize_results(int_patch1, ex_1_label, segmen_patch_recon, shp)
 
     # now let's see if the two encoders produce similar results -> definitely didn't work
-    int_code = intensity_encoder_model.predict(int_patch1)
+    int_code = intensity_encoder.predict(int_patch1)
     seg_code = segmentation_encoder.predict(segmen_patch1)
 
     plt.figure(i)
